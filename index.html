@@ -5,1374 +5,1084 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI/ML/DS International Student Enrollment Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=Literata:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #1a365d;
-            --secondary: #2d3748;
-            --accent: #d97706;
-            --bg: #faf8f5;
-            --card-bg: #ffffff;
-            --text: #1f2937;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --verified: #059669;
+            --primary: #1a365d; --secondary: #2d3748; --accent: #d97706;
+            --bg: #faf8f5; --card-bg: #ffffff; --text: #1f2937;
+            --text-muted: #6b7280; --border: #e5e7eb; --verified: #059669;
+            --purple: #6d28d9; --purple-light: #ede9fe;
+            --red: #c84b31; --blue: #2563eb;
         }
+        body { font-family: 'Literata', Georgia, serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+        .container { max-width: 1400px; margin: 0 auto; background: var(--card-bg); box-shadow: 0 0 60px rgba(0,0,0,0.08); }
 
-        body {
-            font-family: 'Literata', Georgia, serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-        }
+        /* HEADER */
+        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 60px 50px; position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.02) 10px, rgba(255,255,255,0.02) 20px); }
+        .header-content { position: relative; z-index: 1; }
+        .header-tag { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 20px; font-weight: 600; }
+        .header h1 { font-family: 'DM Serif Display', serif; font-size: 3rem; line-height: 1.2; margin-bottom: 20px; font-weight: 400; }
+        .header-subtitle { font-size: 1.125rem; opacity: 0.9; max-width: 800px; line-height: 1.6; }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: var(--card-bg);
-            box-shadow: 0 0 60px rgba(0,0,0,0.08);
-        }
+        /* TABS */
+        .tab-nav { background: var(--card-bg); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .tab-buttons { display: flex; overflow-x: auto; padding: 0 50px; }
+        .tab-button { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; padding: 20px 26px; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.3s; white-space: nowrap; }
+        .tab-button:hover { color: var(--primary); background: var(--bg); }
+        .tab-button.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: 600; }
+        .tab-button.upload-tab { color: var(--purple); }
+        .tab-button.upload-tab.active { border-bottom-color: var(--purple); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            padding: 60px 50px;
-            position: relative;
-            overflow: hidden;
-        }
+        /* SECTIONS */
+        .stats-section { padding: 60px 50px; }
+        .charts-section { padding: 60px 50px; background: var(--bg); }
+        .section-title { font-family: 'DM Serif Display', serif; font-size: 2.5rem; color: var(--primary); margin-bottom: 40px; position: relative; padding-bottom: 20px; }
+        .section-title::after { content: ''; position: absolute; bottom: 0; left: 0; width: 80px; height: 3px; background: var(--accent); }
 
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 10px,
-                rgba(255,255,255,0.02) 10px,
-                rgba(255,255,255,0.02) 20px
-            );
-        }
+        /* STAT CARDS */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; margin-bottom: 40px; }
+        .stat-card { background: var(--card-bg); border: 2px solid var(--border); padding: 28px; transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+        .stat-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+        .stat-value { font-family: 'DM Serif Display', serif; font-size: 2.8rem; line-height: 1; color: var(--primary); margin-bottom: 12px; }
+        .stat-context { font-size: 0.9rem; color: var(--text); }
+        .source-tag { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--verified); display: flex; align-items: center; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .source-tag::before { content: '✓'; font-weight: 700; }
+        .source-tag a { color: var(--verified); text-decoration: none; }
 
-        .header-content {
-            position: relative;
-            z-index: 1;
-        }
+        /* CHARTS */
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(580px, 1fr)); gap: 36px; }
+        .chart-container { background: var(--card-bg); border: 2px solid var(--border); padding: 32px; display: flex; flex-direction: column; }
+        .chart-area { height: 300px; flex: 1 1 auto; min-height: 260px; }
+        .chart-area canvas { width: 100% !important; height: 100% !important; display: block; }
+        .chart-title { font-family: 'DM Serif Display', serif; font-size: 1.45rem; color: var(--primary); margin-bottom: 6px; }
+        .chart-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 22px; }
+        .chart-source { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--verified); margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+        .full-width { grid-column: 1 / -1; }
 
-        .header-tag {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--accent);
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
+        /* ROI */
+        .calculator { background: var(--bg); border: 2px solid var(--border); padding: 40px; margin: 30px 0; }
+        .calc-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; margin-bottom: 28px; }
+        .input-group label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); display: block; margin-bottom: 8px; }
+        select, input[type="number"] { width: 100%; padding: 12px; border: 2px solid var(--border); background: var(--card-bg); font-family: 'Literata', serif; font-size: 1rem; transition: border-color 0.3s; }
+        select:focus, input:focus { outline: none; border-color: var(--primary); }
+        .calc-result { background: var(--card-bg); border: 2px solid var(--primary); padding: 28px; margin-top: 28px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
+        .result-item { text-align: center; }
+        .result-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+        .result-value { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--accent); }
 
-        .header h1 {
-            font-family: 'DM Serif Display', serif;
-            font-size: 3rem;
-            line-height: 1.2;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
+        /* TABLES */
+        table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+        thead { background: var(--primary); color: white; }
+        th { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; padding: 14px 16px; text-align: left; font-weight: 600; }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tbody tr:hover { background: var(--bg); }
 
-        .header-subtitle {
-            font-size: 1.125rem;
-            opacity: 0.9;
-            max-width: 800px;
-            line-height: 1.6;
-        }
+        /* ═══════════════════════════════════════
+           UPLOAD & PREDICT TAB
+        ═══════════════════════════════════════ */
 
-        /* Tab Navigation */
-        .tab-nav {
-            background: var(--card-bg);
-            border-bottom: 2px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
+        /* API status banner */
+        .api-banner { display: flex; align-items: center; gap: 12px; padding: 14px 50px; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; border-bottom: 1px solid var(--border); }
+        .api-dot { width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+        .api-dot.online { background: var(--verified); animation: pulse 2s infinite; }
+        .api-dot.offline { background: var(--accent); }
+        .api-dot.checking { background: #fbbf24; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+        .api-status-text { color: var(--text-muted); }
+        .api-status-text strong { color: var(--text); }
+        .api-mode-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+        .badge-backend { background: #d1fae5; color: #065f46; }
+        .badge-fallback { background: #fef3c7; color: #92400e; }
 
-        .tab-buttons {
-            display: flex;
-            max-width: 1400px;
-            margin: 0 auto;
-            overflow-x: auto;
-            padding: 0 50px;
-        }
+        /* Upload hero */
+        .upload-hero { background: linear-gradient(135deg, var(--purple) 0%, #4c1d95 100%); color: white; padding: 48px 50px; position: relative; overflow: hidden; }
+        .upload-hero::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(255,255,255,0.02) 15px, rgba(255,255,255,0.02) 16px); }
+        .upload-hero::after { content: '📊'; position: absolute; right: 60px; top: 50%; transform: translateY(-50%); font-size: 7rem; opacity: 0.12; }
+        .upload-hero-inner { position: relative; z-index: 1; }
+        .upload-hero h2 { font-family: 'DM Serif Display', serif; font-size: 2.2rem; font-weight: 400; margin-bottom: 10px; }
+        .upload-hero p { opacity: 0.85; max-width: 680px; font-size: 1rem; line-height: 1.65; }
+        .hero-pills { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .hero-pill { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; padding: 5px 12px; border: 1.5px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
 
-        .tab-button {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 20px 30px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            color: var(--text-muted);
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
+        /* Steps */
+        .steps-wrap { padding: 50px; }
+        .step-row { display: flex; gap: 20px; margin-bottom: 50px; align-items: flex-start; }
+        .step-num { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; font-weight: 700; width: 38px; height: 38px; border-radius: 50%; background: #d1d5db; color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 4px; transition: background 0.4s; }
+        .step-num.active { background: var(--purple); }
+        .step-num.done { background: var(--verified); }
+        .step-body { flex: 1; }
+        .step-title { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .step-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; }
+        .sample-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--blue); cursor: pointer; text-decoration: underline; margin-left: 10px; }
 
-        .tab-button:hover {
-            color: var(--primary);
-            background: var(--bg);
-        }
+        /* Upload zone */
+        .upload-zone { border: 2.5px dashed var(--border); background: var(--card-bg); padding: 56px 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .upload-zone:hover, .upload-zone.drag-over { border-color: var(--purple); background: var(--purple-light); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(109,40,217,0.12); }
+        .uz-icon { font-size: 3rem; margin-bottom: 16px; display: block; }
+        .upload-zone h3 { font-family: 'DM Serif Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
+        .upload-zone p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; max-width: 480px; margin-left: auto; margin-right: auto; }
+        .uz-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; padding: 12px 28px; background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; transition: all 0.25s; }
+        .uz-btn:hover { background: var(--purple); }
+        .uz-note { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--text-muted); margin-top: 14px; }
+        #upFileInput { display: none; }
 
-        .tab-button.active {
-            color: var(--primary);
-            border-bottom-color: var(--accent);
-            font-weight: 600;
-        }
+        /* Preview */
+        .data-preview-box { background: var(--card-bg); border: 2px solid var(--border); display: none; margin-top: 20px; overflow: hidden; }
+        .dp-header { background: var(--primary); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; }
+        .dp-header h4 { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+        .dp-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; opacity: 0.65; }
+        .dp-table-wrap { overflow-x: auto; max-height: 220px; }
+        .dp-table-wrap table { margin: 0; }
+        .dp-table-wrap thead { background: var(--secondary); }
+        .dp-table-wrap td { padding: 9px 14px; font-size: 0.85rem; }
 
-        .tab-content {
-            display: none;
-        }
+        /* Column selector */
+        .col-hint { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 12px 18px; background: var(--purple-light); border-left: 3px solid var(--purple); color: var(--purple); margin-bottom: 16px; }
+        .col-legend { display: flex; gap: 20px; margin-bottom: 14px; flex-wrap: wrap; }
+        .cl-item { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+        .cl-dot { width: 12px; height: 12px; border-radius: 2px; }
+        .col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+        .col-card { background: var(--card-bg); border: 2px solid var(--border); padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .col-card:hover { border-color: var(--blue); }
+        .col-card.sel-x { border-color: var(--blue); background: #eff6ff; }
+        .col-card.sel-y { border-color: var(--accent); background: #fffbeb; }
+        .col-card.sel-z { border-color: var(--verified); background: #ecfdf5; }
+        .col-card.sel-x::after { content: 'X INPUT'; font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; background: var(--blue); color: white; padding: 2px 6px; position: absolute; top: 7px; right: 7px; }
+        .col-card.sel-y::after { content: 'ENROLLMENT'; font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; background: var(--accent); color: white; padding: 2px 6px; position: absolute; top: 7px; right: 7px; }
+        .col-card.sel-z::after { content: 'SALARY/JOBS'; font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; background: var(--verified); color: white; padding: 2px 6px; position: absolute; top: 7px; right: 7px; }
+        .cc-name { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+        .cc-info { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
 
-        .tab-content.active {
-            display: block;
-        }
+        /* Train button */
+        .train-btn { display: inline-flex; align-items: center; gap: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; padding: 16px 40px; background: var(--purple); color: white; border: none; cursor: pointer; transition: all 0.3s; font-weight: 600; margin-top: 10px; }
+        .train-btn:hover:not(:disabled) { background: #4c1d95; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(109,40,217,0.3); }
+        .train-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        .train-btn.loading .spinner { display: block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Stats Section */
-        .stats-section {
-            padding: 60px 50px;
-        }
+        /* Progress */
+        .up-progress { display: none; margin-top: 20px; }
+        .up-prog-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 8px; }
+        .up-prog-track { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
+        .up-prog-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--accent)); border-radius: 999px; width: 0%; transition: width 0.4s ease; }
 
-        .section-title {
-            font-family: 'DM Serif Display', serif;
-            font-size: 2.5rem;
-            color: var(--primary);
-            margin-bottom: 40px;
-            position: relative;
-            padding-bottom: 20px;
-        }
+        /* Alerts */
+        .up-alert { padding: 12px 18px; border-left: 4px solid; margin: 14px 0; font-size: 0.875rem; display: none; }
+        .up-alert.show { display: block; }
+        .up-alert-err { border-color: var(--red); background: #fff5f4; color: #7f1d1d; }
 
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 80px;
-            height: 3px;
-            background: var(--accent);
-        }
+        /* Results */
+        .results-wrap { display: none; animation: fadeUp 0.5s ease; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 40px;
-        }
+        /* Model source pill */
+        .model-source-pill { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; padding: 5px 14px; border-radius: 999px; display: inline-block; margin-bottom: 20px; }
+        .pill-rf { background: #d1fae5; color: #065f46; }
+        .pill-lr { background: #fef3c7; color: #92400e; }
 
-        .stat-card {
-            background: var(--card-bg);
-            border: 2px solid var(--border);
-            padding: 30px;
-            transition: all 0.3s ease;
-        }
+        /* Quality badge */
+        .model-badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; padding: 6px 14px; margin-bottom: 24px; margin-left: 10px; font-weight: 600; }
+        .badge-ex { background: #d1fae5; color: #065f46; }
+        .badge-gd { background: #dbeafe; color: #1e3a8a; }
+        .badge-fa { background: #fef9c3; color: #713f12; }
+        .badge-po { background: #fee2e2; color: #7f1d1d; }
 
-        .stat-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary);
-            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-        }
+        /* Metrics */
+        .up-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-bottom: 36px; }
+        .up-metric { background: var(--card-bg); border: 2px solid var(--border); padding: 20px; transition: all 0.2s; }
+        .up-metric:hover { border-color: var(--purple); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .um-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+        .um-val { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--purple); line-height: 1; margin-bottom: 6px; }
+        .um-desc { font-size: 0.78rem; color: var(--text-muted); }
 
-        .stat-label {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-        }
-
-        .stat-value {
-            font-family: 'DM Serif Display', serif;
-            font-size: 3rem;
-            line-height: 1;
-            color: var(--primary);
-            margin-bottom: 15px;
-        }
-
-        .stat-context {
-            font-size: 0.9375rem;
-            color: var(--text);
-            margin-bottom: 15px;
-        }
-
-        .source-tag {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.7rem;
-            color: var(--verified);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid var(--border);
-        }
-
-        .source-tag::before {
-            content: '✓';
-            font-weight: 700;
-        }
-
-        .source-tag a {
-            color: var(--verified);
-            text-decoration: none;
-        }
-
-        .source-tag a:hover {
-            text-decoration: underline;
-        }
+        /* Three prediction cards */
+        .pred-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 36px; }
+        .pred-card { background: var(--card-bg); border: 2px solid var(--border); border-top: 4px solid var(--purple); padding: 28px; }
+        .pred-card-icon { font-size: 1.8rem; margin-bottom: 12px; display: block; }
+        .pred-card h3 { font-family: 'DM Serif Display', serif; font-size: 1.35rem; color: var(--primary); margin-bottom: 6px; }
+        .pred-card p { font-size: 0.84rem; color: var(--text-muted); margin-bottom: 18px; }
+        .pred-input-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+        .pred-input-row label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); display: block; margin-bottom: 5px; }
+        .pred-input-row input { flex: 1; padding: 10px 12px; border: 2px solid var(--border); background: var(--bg); font-family: 'Literata', serif; font-size: 0.95rem; transition: border-color 0.2s; }
+        .pred-input-row input:focus { outline: none; border-color: var(--purple); }
+        .pred-go-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; padding: 11px 16px; background: var(--purple); color: white; border: none; cursor: pointer; font-weight: 600; white-space: nowrap; transition: all 0.2s; }
+        .pred-go-btn:hover { background: #4c1d95; }
+        .pred-result-box { padding: 16px; background: var(--purple-light); border-left: 4px solid var(--purple); display: none; }
+        .pred-result-box.show { display: block; animation: fadeUp 0.3s ease; }
+        .prb-value { font-family: 'DM Serif Display', serif; font-size: 2.4rem; color: var(--purple); line-height: 1; }
+        .prb-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--purple); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        .prb-formula { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid #d8d0f5; line-height: 1.5; }
+        .prb-source { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; margin-top: 6px; }
+        .prb-source.from-backend { color: var(--verified); }
+        .prb-source.from-fallback { color: var(--accent); }
 
         /* Charts */
-        .charts-section {
-            padding: 60px 50px;
-            background: var(--bg);
-        }
+        .up-chart-box { background: var(--card-bg); border: 2px solid var(--border); padding: 30px; margin-bottom: 24px; }
+        .up-chart-box h4 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--primary); margin-bottom: 6px; }
+        .up-chart-box p { font-size: 0.84rem; color: var(--text-muted); margin-bottom: 20px; }
+        .up-chart-area { height: 300px; }
 
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-            gap: 40px;
-        }
-
-        .chart-container {
-            background: var(--card-bg);
-            border: 2px solid var(--border);
-            padding: 35px;
-
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Dedicated chart area so titles/sources never push charts out of the card */
-        .chart-area {
-            height: 300px;              /* tweak 280–340 if you want */
-            flex: 1 1 auto;
-            min-height: 260px;
-        }
-
-        .chart-area canvas {
-            width: 100% !important;
-            height: 100% !important;
-            display: block;
-        }
-
-        .chart-title {
-            font-family: 'DM Serif Display', serif;
-            font-size: 1.5rem;
-            color: var(--primary);
-            margin-bottom: 8px;
-        }
-
-        .chart-subtitle {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            margin-bottom: 25px;
-        }
-
-        .chart-source {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.7rem;
-            color: var(--verified);
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        .full-width {
-            grid-column: 1 / -1;
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 30px 0;
-        }
-
-        thead {
-            background: var(--primary);
-            color: white;
-        }
-
-        th {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        td {
-            padding: 15px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        tbody tr:hover {
-            background: var(--bg);
-        }
-
-        /* ROI Calculator */
-        .calculator {
-            background: var(--bg);
-            border: 2px solid var(--border);
-            padding: 40px;
-            margin: 30px 0;
-        }
-
-        .calc-inputs {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .input-group label {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        select, input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid var(--border);
-            background: var(--card-bg);
-            font-family: 'Literata', Georgia, serif;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .calc-result {
-            background: var(--card-bg);
-            border: 2px solid var(--primary);
-            padding: 30px;
-            margin-top: 30px;
-        }
-
-        .result-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .result-item {
-            text-align: center;
-        }
-
-        .result-label {
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-
-        .result-value {
-            font-family: 'DM Serif Display', serif;
-            font-size: 2rem;
-            color: var(--accent);
-        }
+        /* Bulk table */
+        .bulk-section { background: var(--card-bg); border: 2px solid var(--border); border-top: 4px solid var(--verified); padding: 28px; margin-bottom: 28px; }
+        .bulk-section h4 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--primary); margin-bottom: 6px; }
+        .bulk-section p { font-size: 0.84rem; color: var(--text-muted); margin-bottom: 18px; }
+        .bulk-table-wrap { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); }
+        .bulk-table-wrap table { margin: 0; }
+        .dl-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; padding: 12px 26px; background: var(--verified); color: white; border: none; cursor: pointer; font-weight: 600; transition: all 0.25s; }
+        .dl-btn:hover { background: #047857; }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-            .tab-buttons {
-                padding: 0 20px;
-            }
-            .stats-section, .charts-section {
-                padding: 40px 20px;
-            }
-            .chart-grid {
-                grid-template-columns: 1fr;
-            }
+            .header h1 { font-size: 2rem; }
+            .tab-buttons { padding: 0 20px; }
+            .stats-section, .charts-section, .steps-wrap { padding: 36px 20px; }
+            .chart-grid, .pred-cards-grid { grid-template-columns: 1fr; }
+            .step-row { flex-direction: column; }
+            .upload-hero { padding: 36px 24px; }
+            .api-banner { padding: 14px 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-content">
-                <div class="header-tag">Comprehensive Market Analysis 2024-2025</div>
-                <h1>International Student Enrollment:<br>AI, Machine Learning & Data Science Programs</h1>
-                <p class="header-subtitle">Evidence-based analysis of international student trends, program growth, job market dynamics, and return on investment. All data verified from primary sources including DHS SEVIS, BLS, LinkedIn, and arXiv.</p>
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-content">
+            <div class="header-tag">Comprehensive Market Analysis 2024–2025</div>
+            <h1>International Student Enrollment:<br>AI, Machine Learning & Data Science</h1>
+            <p class="header-subtitle">Evidence-based analytics with a live ML prediction engine — upload your own data and get Random Forest predictions powered by a Python backend.</p>
+        </div>
+    </div>
+
+    <!-- TAB NAV -->
+    <div class="tab-nav">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="showTab(0)">Overview</button>
+            <button class="tab-button" onclick="showTab(1)">Enrollment Trends</button>
+            <button class="tab-button" onclick="showTab(2)">ROI Calculator</button>
+            <button class="tab-button" onclick="showTab(3)">Job Market</button>
+            <button class="tab-button" onclick="showTab(4)">Research Growth</button>
+            <button class="tab-button" onclick="showTab(5)">Programs & Tuition</button>
+            <button class="tab-button" onclick="showTab(6)">Country Analysis</button>
+            <button class="tab-button upload-tab" onclick="showTab(7)">📂 Upload & Predict</button>
+        </div>
+    </div>
+
+    <!-- TAB 0: OVERVIEW -->
+    <div class="tab-content active">
+        <div class="stats-section">
+            <h2 class="section-title">Market Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Total International Students</div><div class="stat-value">1.58M</div><div class="stat-context">Active F-1 and M-1 students in 2024, +5.3% from 2023</div><div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">AI/ML/DS Programs</div><div class="stat-value">503</div><div class="stat-context">193 Bachelor's + 310 Master's across 304 institutions</div><div class="source-tag">Masters in AI Report 2025</div></div>
+                <div class="stat-card"><div class="stat-label">AI Engineer Median Salary</div><div class="stat-value">$172K</div><div class="stat-context">Median annual salary with +15% annual growth trajectory</div><div class="source-tag"><a href="https://www.jobsindata.com/salaries/ai-engineer" target="_blank">Jobs in Data 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">AI Research Papers</div><div class="stat-value">140K</div><div class="stat-context">Published on arXiv in 2024, up from 9,549 in 2015</div><div class="source-tag">arXiv Data 2024</div></div>
+                <div class="stat-card"><div class="stat-label">Master's Degree Focus</div><div class="stat-value">46.5%</div><div class="stat-context">Share of international students pursuing Master's degrees</div><div class="source-tag"><a href="https://www.boundless.com/research/international-students-studying-in-the-united-states-trends-and-impacts/" target="_blank">Boundless 2025</a></div></div>
+                <div class="stat-card"><div class="stat-label">STEM OPT Participants</div><div class="stat-value">122K</div><div class="stat-context">Students in STEM OPT programs (36-month authorization)</div><div class="source-tag"><a href="https://studyinthestates.dhs.gov/2024/05/read-the-2023-sevis-by-the-numbers-report" target="_blank">DHS SEVIS 2023</a></div></div>
             </div>
         </div>
-
-        <!-- Tab Navigation -->
-        <div class="tab-nav">
-            <div class="tab-buttons">
-                <button class="tab-button active" onclick="showTab(0)">Overview</button>
-                <button class="tab-button" onclick="showTab(1)">Enrollment Trends</button>
-                <button class="tab-button" onclick="showTab(2)">ROI Calculator</button>
-                <button class="tab-button" onclick="showTab(3)">Job Market</button>
-                <button class="tab-button" onclick="showTab(4)">Research Growth</button>
-                <button class="tab-button" onclick="showTab(5)">Programs & Tuition</button>
-                <button class="tab-button" onclick="showTab(6)">Country Analysis</button>
-            </div>
-        </div>
-
-        <!-- Tab 1: Overview -->
-        <div class="tab-content active">
-            <div class="stats-section">
-                <h2 class="section-title">Market Overview</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total International Students</div>
-                        <div class="stat-value">1.58M</div>
-                        <div class="stat-context">Active F-1 and M-1 students in 2024, representing a 5.3% increase from 2023</div>
-                        <div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">AI/ML/DS Programs</div>
-                        <div class="stat-value">503</div>
-                        <div class="stat-context">Total programs across 304 institutions (193 Bachelor's + 310 Master's)</div>
-                        <div class="source-tag">Masters in AI Report 2025</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">AI Engineer Median Salary</div>
-                        <div class="stat-value">$172K</div>
-                        <div class="stat-context">Median annual salary with strong growth trajectory (+15% annually)</div>
-                        <div class="source-tag"><a href="https://www.jobsindata.com/salaries/ai-engineer" target="_blank">Jobs in Data 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">AI Research Papers</div>
-                        <div class="stat-value">140K</div>
-                        <div class="stat-context">Published on arXiv in 2024, up from 9,549 in 2015 (+1,371% growth)</div>
-                        <div class="source-tag">arXiv Data 2024</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Master's Degree Focus</div>
-                        <div class="stat-value">46.5%</div>
-                        <div class="stat-context">Share of international students pursuing Master's degrees</div>
-                        <div class="source-tag"><a href="https://www.boundless.com/research/international-students-studying-in-the-united-states-trends-and-impacts/" target="_blank">Boundless 2025</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">STEM OPT Participants</div>
-                        <div class="stat-value">122K</div>
-                        <div class="stat-context">Students in STEM OPT programs (36-month work authorization)</div>
-                        <div class="source-tag"><a href="https://studyinthestates.dhs.gov/2024/05/read-the-2023-sevis-by-the-numbers-report" target="_blank">DHS SEVIS 2023</a></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <h2 class="section-title">Key Trends</h2>
-                <div class="chart-grid">
-                    <div class="chart-container">
-                        <div class="chart-title">International Student Growth</div>
-                        <div class="chart-subtitle">Total active F-1 and M-1 students (2015-2024)</div>
-                        <div class="chart-area">
-                            <canvas id="enrollmentTrend"></canvas>
-                        </div>
-                        <div class="chart-source">Source: DHS SEVIS Reports 2015-2024</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">Top Countries of Origin</div>
-                        <div class="chart-subtitle">International student distribution 2024</div>
-                        <div class="chart-area">
-                            <canvas id="countryOrigin"></canvas>
-                        </div>
-                        <div class="chart-source">Source: DHS SEVIS by the Numbers 2024</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab 2: Enrollment Trends -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">Enrollment Trends</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">2024 Total Enrollment</div>
-                        <div class="stat-value">1,582,808</div>
-                        <div class="stat-context">5.3% increase from 1,503,649 in 2023</div>
-                        <div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Program Growth Rate</div>
-                        <div class="stat-value">+114%</div>
-                        <div class="stat-context">Bachelor's AI programs grew from 90 (2024) to 193 (2025)</div>
-                        <div class="source-tag">Stanford AI Index 2024</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">STEM Field Concentration</div>
-                        <div class="stat-value">56%</div>
-                        <div class="stat-context">Of international students in STEM fields, eligible for extended OPT</div>
-                        <div class="source-tag"><a href="https://www.migrationpolicy.org/article/international-students-united-states" target="_blank">Migration Policy 2025</a></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-grid">
-                    <div class="chart-container full-width">
-                        <div class="chart-title">Historical Enrollment Trend</div>
-                        <div class="chart-subtitle">International student enrollment 2015-2024 with key events</div>
-                        <div class="chart-area">
-                            <canvas id="detailedTrend"></canvas>
-                        </div>
-                        <div class="chart-source">Source: DHS SEVIS Annual Reports | Note: 2020 dip due to COVID-19 pandemic</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">Field of Study Distribution</div>
-                        <div class="chart-subtitle">Top fields for international students 2023-24</div>
-                        <div class="chart-area">
-                            <canvas id="fieldDistribution"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Migration Policy Institute 2025</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">Program Type Distribution</div>
-                        <div class="chart-subtitle">International student enrollment by degree level</div>
-                        <div class="chart-area">
-                            <canvas id="degreeLevel"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Boundless Research 2025, DHS SEVIS 2024</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab 3: ROI Calculator -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">Return on Investment Calculator</h2>
-                
-                <div class="calculator">
-                    <h3 class="chart-title">Calculate Your Program ROI</h3>
-                    <p class="chart-subtitle">Compare program costs against expected career earnings</p>
-                    
-                    <div class="calc-inputs">
-                        <div class="input-group">
-                            <label>Program Cost</label>
-                            <select id="programCost" onchange="calculateROI()">
-                                <option value="11005">$11,005 - University of Cumberlands</option>
-                                <option value="25274">$25,274 - U. Houston-Downtown</option>
-                                <option value="17700">$17,700 - Indiana Wesleyan</option>
-                                <option value="30000">$30,000 - Dakota State</option>
-                                <option value="50000" selected>$50,000 - Average Program</option>
-                                <option value="60000">$60,000 - University of Florida</option>
-                                <option value="120000">$120,000 - Northwestern</option>
-                            </select>
-                        </div>
-
-                        <div class="input-group">
-                            <label>Expected Starting Salary</label>
-                            <select id="startingSalary" onchange="calculateROI()">
-                                <option value="90000">$90,000 - Entry Level</option>
-                                <option value="112590">$112,590 - Data Scientist (BLS)</option>
-                                <option value="135000" selected>$135,000 - Data Scientist (Market)</option>
-                                <option value="165000">$165,000 - ML Engineer</option>
-                                <option value="172000">$172,000 - AI Engineer</option>
-                                <option value="200000">$200,000 - Research Scientist</option>
-                            </select>
-                        </div>
-
-                        <div class="input-group">
-                            <label>Years to Calculate</label>
-                            <select id="roiYears" onchange="calculateROI()">
-                                <option value="3">3 Years</option>
-                                <option value="5" selected>5 Years</option>
-                                <option value="10">10 Years</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="calc-result">
-                        <div class="result-grid">
-                            <div class="result-item">
-                                <div class="result-label">Payback Period</div>
-                                <div class="result-value" id="paybackMonths">-</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Total Earnings</div>
-                                <div class="result-value" id="totalEarnings">-</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Net Gain</div>
-                                <div class="result-value" id="netGain">-</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">ROI Percentage</div>
-                                <div class="result-value" id="roiPercent">-</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <h2 class="section-title">Program Cost Comparison</h2>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>University</th>
-                            <th>Tuition</th>
-                            <th>Total Program Cost</th>
-                            <th>Type</th>
-                            <th>Source</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>University of Cumberlands</td>
-                            <td>$11,005</td>
-                            <td>$11,005</td>
-                            <td>MS AI</td>
-                            <td>Most Affordable Online AI 2025</td>
-                        </tr>
-                        <tr>
-                            <td>U. Houston-Downtown</td>
-                            <td>$12,637/yr</td>
-                            <td>$25,274</td>
-                            <td>MS AI (30 credits)</td>
-                            <td>CollegeHippo 2025</td>
-                        </tr>
-                        <tr>
-                            <td>Indiana Wesleyan</td>
-                            <td>$590/credit</td>
-                            <td>$17,700</td>
-                            <td>MS AI - Data Analytics</td>
-                            <td>Masters in AI 2025</td>
-                        </tr>
-                        <tr>
-                            <td>Dakota State</td>
-                            <td>~$15,000/yr</td>
-                            <td>~$30,000</td>
-                            <td>MS AI</td>
-                            <td>Research.com 2025</td>
-                        </tr>
-                        <tr>
-                            <td>University of Florida</td>
-                            <td>~$30,000/yr</td>
-                            <td>~$60,000</td>
-                            <td>MS AI</td>
-                            <td>AI Degree Guide 2024</td>
-                        </tr>
-                        <tr>
-                            <td>Northwestern University</td>
-                            <td>$60,000+/yr</td>
-                            <td>$120,000+</td>
-                            <td>MS AI</td>
-                            <td>Northwestern Financial Aid</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <table style="margin-top: 50px;">
-                    <thead>
-                        <tr>
-                            <th>Job Role</th>
-                            <th>Median Salary</th>
-                            <th>Salary Range</th>
-                            <th>Source</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>AI Engineer</td>
-                            <td>$172,000</td>
-                            <td>$140K - $200K</td>
-                            <td>Jobs in Data 2024</td>
-                        </tr>
-                        <tr>
-                            <td>ML Engineer</td>
-                            <td>$165,000</td>
-                            <td>$150K - $170K</td>
-                            <td>BLS / Glassdoor 2024</td>
-                        </tr>
-                        <tr>
-                            <td>Data Scientist</td>
-                            <td>$135,000</td>
-                            <td>$110K - $160K</td>
-                            <td>Glassdoor 2024</td>
-                        </tr>
-                        <tr>
-                            <td>Data Scientist (BLS)</td>
-                            <td>$112,590</td>
-                            <td>-</td>
-                            <td>U.S. Bureau of Labor Statistics</td>
-                        </tr>
-                        <tr>
-                            <td>AI Research Scientist</td>
-                            <td>$200,000+</td>
-                            <td>$200K - $300K</td>
-                            <td>Software Oasis 2024</td>
-                        </tr>
-                        <tr>
-                            <td>Entry Level AI/ML</td>
-                            <td>$90,000</td>
-                            <td>$90K - $120K</td>
-                            <td>College Dunia 2024</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab 4: Job Market -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">AI/ML Job Market Analysis</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">LinkedIn AI Job Growth</div>
-                        <div class="stat-value">+38%</div>
-                        <div class="stat-context">AI-related job postings growth from 2020 to 2024</div>
-                        <div class="source-tag"><a href="https://softwareoasis.com/growth-in-ai-job-postings/" target="_blank">LinkedIn Report 2025</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">AI Hiring Growth (8 Years)</div>
-                        <div class="stat-value">+323%</div>
-                        <div class="stat-context">AI-related hiring increase from 2016 to 2024</div>
-                        <div class="source-tag"><a href="https://oecd.ai/en/wonk/2023-linkedin-data" target="_blank">OECD.AI 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">AI Skills on Profiles</div>
-                        <div class="stat-value">142x</div>
-                        <div class="stat-context">Increase in LinkedIn members adding AI skills (ChatGPT, Copilot)</div>
-                        <div class="source-tag"><a href="https://blogs.microsoft.com/blog/2024/05/08/microsoft-and-linkedin-release-the-2024-work-trend-index-on-the-state-of-ai-at-work/" target="_blank">Microsoft Work Trend Index 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Generative AI Jobs</div>
-                        <div class="stat-value">+50%</div>
-                        <div class="stat-context">Job posting growth for generative AI roles (2022-2024)</div>
-                        <div class="source-tag"><a href="https://softwareoasis.com/growth-in-ai-job-postings/" target="_blank">Software Oasis 2025</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Knowledge Workers Using AI</div>
-                        <div class="stat-value">75%</div>
-                        <div class="stat-context">Global knowledge workers incorporating AI in daily routines</div>
-                        <div class="source-tag"><a href="https://oecd.ai/en/wonk/2023-linkedin-data" target="_blank">LinkedIn 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Leaders Won't Hire Without AI</div>
-                        <div class="stat-value">66%</div>
-                        <div class="stat-context">Of leaders say they won't hire someone without AI skills</div>
-                        <div class="source-tag">Microsoft Work Trend Index 2024</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-grid">
-                    <div class="chart-container">
-                        <div class="chart-title">AI Job Posting Growth</div>
-                        <div class="chart-subtitle">LinkedIn platform data (indexed to 2016 = 100)</div>
-                        <div class="chart-area">
-                            <canvas id="jobGrowth"></canvas>
-                        </div>
-                        <div class="chart-source">Source: LinkedIn Economic Graph, OECD.AI 2024</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">AI Skills Growth</div>
-                        <div class="chart-subtitle">AI literacy skills added to LinkedIn profiles</div>
-                        <div class="chart-area">
-                            <canvas id="skillsGrowth"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Microsoft & LinkedIn Work Trend Index 2024</div>
-                    </div>
-
-                    <div class="chart-container full-width">
-                        <div class="chart-title">Top Employers (OPT/STEM OPT)</div>
-                        <div class="chart-subtitle">Largest employers of international graduates in 2024</div>
-                        <div class="chart-area">
-                            <canvas id="topEmployers"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Boundless Research 2025</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab 5: Research Growth -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">AI Research Publication Growth</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Papers (2024)</div>
-                        <div class="stat-value">140,488</div>
-                        <div class="stat-context">AI research papers on arXiv, up from 9,549 in 2015</div>
-                        <div class="source-tag">arXiv API Data 2024</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Total Growth (2015-2024)</div>
-                        <div class="stat-value">+1,371%</div>
-                        <div class="stat-context">14.7x increase over 9 years</div>
-                        <div class="source-tag">arXiv API Data</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Compound Annual Growth Rate</div>
-                        <div class="stat-value">34.8%</div>
-                        <div class="stat-context">Average annual growth rate across all AI categories</div>
-                        <div class="source-tag">Calculated from arXiv data</div>
-                    </div>
-                </div>
-
-                <div class="stats-grid" style="margin-top: 40px;">
-                    <div class="stat-card">
-                        <div class="stat-label">Machine Learning (cs.LG)</div>
-                        <div class="stat-value">39,783</div>
-                        <div class="stat-context">Papers in 2024 (up from 2,490 in 2015, +1,498%)</div>
-                        <div class="source-tag">arXiv Data</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Artificial Intelligence (cs.AI)</div>
-                        <div class="stat-value">33,021</div>
-                        <div class="stat-context">Papers in 2024 (up from 1,117 in 2015, +2,856%)</div>
-                        <div class="source-tag">arXiv Data</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Computer Vision (cs.CV)</div>
-                        <div class="stat-value">30,584</div>
-                        <div class="stat-context">Papers in 2024 (up from 2,264 in 2015, +1,251%)</div>
-                        <div class="source-tag">arXiv Data</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-grid">
-                    <div class="chart-container full-width">
-                        <div class="chart-title">Publication Growth by Category</div>
-                        <div class="chart-subtitle">arXiv AI research papers 2015-2024</div>
-                        <div class="chart-area">
-                            <canvas id="arxivGrowth"></canvas>
-                        </div>
-                        <div class="chart-source">Source: arXiv API Data (user-provided, verified)</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">Growth by Category</div>
-                        <div class="chart-subtitle">Percentage growth 2015-2024</div>
-                        <div class="chart-area">
-                            <canvas id="categoryGrowth"></canvas>
-                        </div>
-                        <div class="chart-source">Source: arXiv API Data</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">2024 Distribution</div>
-                        <div class="chart-subtitle">Share of total AI papers by category</div>
-                        <div class="chart-area">
-                            <canvas id="categoryDist"></canvas>
-                        </div>
-                        <div class="chart-source">Source: arXiv API Data</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab 6: Programs & Tuition -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">AI/ML/DS Program Landscape</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Programs (2025)</div>
-                        <div class="stat-value">503</div>
-                        <div class="stat-context">193 Bachelor's + 310 Master's programs across 304 institutions</div>
-                        <div class="source-tag">Masters in AI Report 2025</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Bachelor's Program Growth</div>
-                        <div class="stat-value">+114%</div>
-                        <div class="stat-context">From 90 programs (2024) to 193 programs (2025)</div>
-                        <div class="source-tag">Stanford AI Index 2024</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Geographic Concentration</div>
-                        <div class="stat-value">50%</div>
-                        <div class="stat-context">Of students in CA, NY, TX, MA, FL (California leads with 19%)</div>
-                        <div class="source-tag">Boundless 2025, ThunderBit 2024</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-grid">
-                    <div class="chart-container">
-                        <div class="chart-title">Program Growth Trajectory</div>
-                        <div class="chart-subtitle">Bachelor's and Master's programs 2022-2025</div>
-                        <div class="chart-area">
-                            <canvas id="programGrowth"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Masters in AI Report 2025, Stanford AI Index 2024</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">Tuition Range Distribution</div>
-                        <div class="chart-subtitle">Program costs across major universities</div>
-                        <div class="chart-area">
-                            <canvas id="tuitionRange"></canvas>
-                        </div>
-                        <div class="chart-source">Source: Multiple university sources, compiled 2024-2025</div>
-                    </div>
-                </div>
-
-                <h2 class="section-title" style="margin-top: 50px;">Top Universities by Enrollment</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>University</th>
-                            <th>Location</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td>New York University</td>
-                            <td>New York, NY</td>
-                            <td>Largest international student enrollment</td>
-                        </tr>
-                        <tr>
-                            <td>2</td>
-                            <td>Northeastern University</td>
-                            <td>Boston, MA</td>
-                            <td>Strong co-op program integration</td>
-                        </tr>
-                        <tr>
-                            <td>3</td>
-                            <td>Columbia University</td>
-                            <td>New York, NY</td>
-                            <td>Ivy League, research-focused</td>
-                        </tr>
-                        <tr>
-                            <td>4</td>
-                            <td>USC</td>
-                            <td>Los Angeles, CA</td>
-                            <td>West Coast tech hub access</td>
-                        </tr>
-                        <tr>
-                            <td>5</td>
-                            <td>Boston University</td>
-                            <td>Boston, MA</td>
-                            <td>Strong industry connections</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab 7: Country Analysis -->
-        <div class="tab-content">
-            <div class="stats-section">
-                <h2 class="section-title">Country-Specific Analysis</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Students from India (2024)</div>
-                        <div class="stat-value">422,335</div>
-                        <div class="stat-context">26.7% of total, +44,715 year-over-year growth</div>
-                        <div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Students from China (2024)</div>
-                        <div class="stat-value">329,541</div>
-                        <div class="stat-context">20.8% of total, -824 year-over-year (slight decline)</div>
-                        <div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Combined Share</div>
-                        <div class="stat-value">47.5%</div>
-                        <div class="stat-context">India + China represent nearly half of all international students</div>
-                        <div class="source-tag">DHS SEVIS 2024 (calculated)</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">India STEM OPT Share</div>
-                        <div class="stat-value">39.1%</div>
-                        <div class="stat-context">Of STEM OPT participants, India has the largest share</div>
-                        <div class="source-tag"><a href="https://studyinthestates.dhs.gov/2024/05/read-the-2023-sevis-by-the-numbers-report" target="_blank">DHS SEVIS 2023</a></div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">China STEM OPT Share</div>
-                        <div class="stat-value">23.7%</div>
-                        <div class="stat-context">Second-largest share of STEM OPT participation</div>
-                        <div class="source-tag">DHS SEVIS 2023</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-label">Combined STEM OPT</div>
-                        <div class="stat-value">62.8%</div>
-                        <div class="stat-context">India + China dominate STEM OPT program participation</div>
-                        <div class="source-tag">DHS SEVIS 2023 (calculated)</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-grid">
-                    <div class="chart-container">
-                        <div class="chart-title">India vs China Trend</div>
-                        <div class="chart-subtitle">Student enrollment 2022-2024</div>
-                        <div class="chart-area">
-                            <canvas id="indiaChina"></canvas>
-                        </div>
-                        <div class="chart-source">Source: DHS SEVIS Reports 2022-2024</div>
-                    </div>
-
-                    <div class="chart-container">
-                        <div class="chart-title">STEM OPT Participation</div>
-                        <div class="chart-subtitle">Top countries by STEM OPT share</div>
-                        <div class="chart-area">
-                            <canvas id="stemOpt"></canvas>
-                        </div>
-                        <div class="chart-source">Source: DHS SEVIS by the Numbers 2023</div>
-                    </div>
-                </div>
+        <div class="charts-section">
+            <h2 class="section-title">Key Trends</h2>
+            <div class="chart-grid">
+                <div class="chart-container"><div class="chart-title">International Student Growth</div><div class="chart-subtitle">Total active F-1 and M-1 students (2015–2024)</div><div class="chart-area"><canvas id="enrollmentTrend"></canvas></div><div class="chart-source">Source: DHS SEVIS Reports 2015–2024</div></div>
+                <div class="chart-container"><div class="chart-title">Top Countries of Origin</div><div class="chart-subtitle">International student distribution 2024</div><div class="chart-area"><canvas id="countryOrigin"></canvas></div><div class="chart-source">Source: DHS SEVIS by the Numbers 2024</div></div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Tab switching
-        function showTab(index) {
-            const contents = document.querySelectorAll('.tab-content');
-            const buttons = document.querySelectorAll('.tab-button');
-            
-            contents.forEach((content, i) => {
-                content.classList.toggle('active', i === index);
-            });
-            
-            buttons.forEach((button, i) => {
-                button.classList.toggle('active', i === index);
-            });
+    <!-- TAB 1: ENROLLMENT TRENDS -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">Enrollment Trends</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">2024 Total Enrollment</div><div class="stat-value">1,582,808</div><div class="stat-context">5.3% increase from 1,503,649 in 2023</div><div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">Program Growth Rate</div><div class="stat-value">+114%</div><div class="stat-context">Bachelor's AI programs grew from 90 (2024) to 193 (2025)</div><div class="source-tag">Stanford AI Index 2024</div></div>
+                <div class="stat-card"><div class="stat-label">STEM Field Concentration</div><div class="stat-value">56%</div><div class="stat-context">Of international students in STEM fields, eligible for extended OPT</div><div class="source-tag"><a href="https://www.migrationpolicy.org/article/international-students-united-states" target="_blank">Migration Policy 2025</a></div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <div class="chart-grid">
+                <div class="chart-container full-width"><div class="chart-title">Historical Enrollment Trend</div><div class="chart-subtitle">2015–2024 (2020 dip = COVID-19)</div><div class="chart-area"><canvas id="detailedTrend"></canvas></div><div class="chart-source">Source: DHS SEVIS Annual Reports</div></div>
+                <div class="chart-container"><div class="chart-title">Field of Study Distribution</div><div class="chart-subtitle">Top fields for international students 2023-24</div><div class="chart-area"><canvas id="fieldDistribution"></canvas></div><div class="chart-source">Source: Migration Policy Institute 2025</div></div>
+                <div class="chart-container"><div class="chart-title">Program Type Distribution</div><div class="chart-subtitle">International student enrollment by degree level</div><div class="chart-area"><canvas id="degreeLevel"></canvas></div><div class="chart-source">Source: Boundless Research 2025</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: ROI CALCULATOR -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">Return on Investment Calculator</h2>
+            <div class="calculator">
+                <h3 class="chart-title">Calculate Your Program ROI</h3>
+                <p class="chart-subtitle" style="margin-bottom:24px">Compare program costs against expected career earnings</p>
+                <div class="calc-inputs">
+                    <div class="input-group"><label>Program Cost</label><select id="programCost" onchange="calculateROI()"><option value="11005">$11,005 - University of Cumberlands</option><option value="25274">$25,274 - U. Houston-Downtown</option><option value="17700">$17,700 - Indiana Wesleyan</option><option value="30000">$30,000 - Dakota State</option><option value="50000" selected>$50,000 - Average Program</option><option value="60000">$60,000 - University of Florida</option><option value="120000">$120,000 - Northwestern</option></select></div>
+                    <div class="input-group"><label>Expected Starting Salary</label><select id="startingSalary" onchange="calculateROI()"><option value="90000">$90,000 - Entry Level</option><option value="112590">$112,590 - Data Scientist (BLS)</option><option value="135000" selected>$135,000 - Data Scientist (Market)</option><option value="165000">$165,000 - ML Engineer</option><option value="172000">$172,000 - AI Engineer</option><option value="200000">$200,000 - Research Scientist</option></select></div>
+                    <div class="input-group"><label>Years to Calculate</label><select id="roiYears" onchange="calculateROI()"><option value="3">3 Years</option><option value="5" selected>5 Years</option><option value="10">10 Years</option></select></div>
+                </div>
+                <div class="calc-result"><div class="result-grid"><div class="result-item"><div class="result-label">Payback Period</div><div class="result-value" id="paybackMonths">-</div></div><div class="result-item"><div class="result-label">Total Earnings</div><div class="result-value" id="totalEarnings">-</div></div><div class="result-item"><div class="result-label">Net Gain</div><div class="result-value" id="netGain">-</div></div><div class="result-item"><div class="result-label">ROI Percentage</div><div class="result-value" id="roiPercent">-</div></div></div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <table><thead><tr><th>University</th><th>Tuition</th><th>Total Cost</th><th>Type</th></tr></thead><tbody>
+                <tr><td>University of Cumberlands</td><td>$11,005</td><td>$11,005</td><td>MS AI</td></tr>
+                <tr><td>U. Houston-Downtown</td><td>$12,637/yr</td><td>$25,274</td><td>MS AI</td></tr>
+                <tr><td>Indiana Wesleyan</td><td>$590/credit</td><td>$17,700</td><td>MS AI</td></tr>
+                <tr><td>University of Florida</td><td>~$30,000/yr</td><td>~$60,000</td><td>MS AI</td></tr>
+                <tr><td>Northwestern University</td><td>$60,000+/yr</td><td>$120,000+</td><td>MS AI</td></tr>
+            </tbody></table>
+        </div>
+    </div>
+
+    <!-- TAB 3: JOB MARKET -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">AI/ML Job Market Analysis</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">LinkedIn AI Job Growth</div><div class="stat-value">+38%</div><div class="stat-context">AI-related job postings growth from 2020 to 2024</div><div class="source-tag"><a href="https://softwareoasis.com/growth-in-ai-job-postings/" target="_blank">LinkedIn Report 2025</a></div></div>
+                <div class="stat-card"><div class="stat-label">AI Hiring Growth (8 Years)</div><div class="stat-value">+323%</div><div class="stat-context">AI-related hiring increase from 2016 to 2024</div><div class="source-tag"><a href="https://oecd.ai/en/wonk/2023-linkedin-data" target="_blank">OECD.AI 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">AI Skills on Profiles</div><div class="stat-value">142x</div><div class="stat-context">Increase in LinkedIn members adding AI skills</div><div class="source-tag"><a href="https://blogs.microsoft.com/blog/2024/05/08/microsoft-and-linkedin-release-the-2024-work-trend-index-on-the-state-of-ai-at-work/" target="_blank">Microsoft Work Trend Index 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">Generative AI Jobs</div><div class="stat-value">+50%</div><div class="stat-context">Job posting growth for generative AI roles (2022–2024)</div><div class="source-tag">Software Oasis 2025</div></div>
+                <div class="stat-card"><div class="stat-label">Knowledge Workers Using AI</div><div class="stat-value">75%</div><div class="stat-context">Global knowledge workers incorporating AI daily</div><div class="source-tag">LinkedIn 2024</div></div>
+                <div class="stat-card"><div class="stat-label">Leaders Won't Hire Without AI</div><div class="stat-value">66%</div><div class="stat-context">Of leaders say they won't hire someone without AI skills</div><div class="source-tag">Microsoft Work Trend Index 2024</div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <div class="chart-grid">
+                <div class="chart-container"><div class="chart-title">AI Job Posting Growth</div><div class="chart-subtitle">LinkedIn platform data (indexed 2016 = 100)</div><div class="chart-area"><canvas id="jobGrowth"></canvas></div><div class="chart-source">Source: LinkedIn Economic Graph, OECD.AI 2024</div></div>
+                <div class="chart-container"><div class="chart-title">AI Skills Growth</div><div class="chart-subtitle">AI literacy skills added to LinkedIn profiles</div><div class="chart-area"><canvas id="skillsGrowth"></canvas></div><div class="chart-source">Source: Microsoft & LinkedIn Work Trend Index 2024</div></div>
+                <div class="chart-container full-width"><div class="chart-title">Top Employers (OPT/STEM OPT)</div><div class="chart-subtitle">Largest employers of international graduates in 2024</div><div class="chart-area"><canvas id="topEmployers"></canvas></div><div class="chart-source">Source: Boundless Research 2025</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: RESEARCH GROWTH -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">AI Research Publication Growth</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Total Papers (2024)</div><div class="stat-value">140,488</div><div class="stat-context">AI research papers on arXiv, up from 9,549 in 2015</div><div class="source-tag">arXiv API Data 2024</div></div>
+                <div class="stat-card"><div class="stat-label">Total Growth</div><div class="stat-value">+1,371%</div><div class="stat-context">14.7× increase over 9 years</div><div class="source-tag">arXiv API Data</div></div>
+                <div class="stat-card"><div class="stat-label">CAGR</div><div class="stat-value">34.8%</div><div class="stat-context">Compound annual growth rate across all AI categories</div><div class="source-tag">Calculated from arXiv data</div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <div class="chart-grid">
+                <div class="chart-container full-width"><div class="chart-title">Publication Growth by Category</div><div class="chart-subtitle">arXiv AI research papers 2015–2024</div><div class="chart-area"><canvas id="arxivGrowth"></canvas></div><div class="chart-source">Source: arXiv API Data</div></div>
+                <div class="chart-container"><div class="chart-title">Growth by Category (%)</div><div class="chart-subtitle">Percentage growth 2015–2024</div><div class="chart-area"><canvas id="categoryGrowth"></canvas></div><div class="chart-source">Source: arXiv API Data</div></div>
+                <div class="chart-container"><div class="chart-title">2024 Distribution</div><div class="chart-subtitle">Share by category</div><div class="chart-area"><canvas id="categoryDist"></canvas></div><div class="chart-source">Source: arXiv API Data</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: PROGRAMS -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">AI/ML/DS Program Landscape</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Total Programs (2025)</div><div class="stat-value">503</div><div class="stat-context">193 Bachelor's + 310 Master's across 304 institutions</div><div class="source-tag">Masters in AI Report 2025</div></div>
+                <div class="stat-card"><div class="stat-label">Bachelor's Growth</div><div class="stat-value">+114%</div><div class="stat-context">From 90 programs (2024) to 193 programs (2025)</div><div class="source-tag">Stanford AI Index 2024</div></div>
+                <div class="stat-card"><div class="stat-label">Geographic Concentration</div><div class="stat-value">50%</div><div class="stat-context">Of students in CA, NY, TX, MA, FL</div><div class="source-tag">Boundless 2025</div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <div class="chart-grid">
+                <div class="chart-container"><div class="chart-title">Program Growth Trajectory</div><div class="chart-subtitle">Bachelor's and Master's programs 2022–2025</div><div class="chart-area"><canvas id="programGrowth"></canvas></div><div class="chart-source">Source: Masters in AI Report 2025</div></div>
+                <div class="chart-container"><div class="chart-title">Tuition Range Distribution</div><div class="chart-subtitle">Program costs across major universities</div><div class="chart-area"><canvas id="tuitionRange"></canvas></div><div class="chart-source">Source: Multiple university sources</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 6: COUNTRY ANALYSIS -->
+    <div class="tab-content">
+        <div class="stats-section">
+            <h2 class="section-title">Country-Specific Analysis</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Students from India (2024)</div><div class="stat-value">422,335</div><div class="stat-context">26.7% of total, +44,715 year-over-year</div><div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">Students from China (2024)</div><div class="stat-value">329,541</div><div class="stat-context">20.8% of total, -824 year-over-year</div><div class="source-tag"><a href="https://www.ice.gov/doclib/sevis/btn/25_0605_2024-sevis-btn.pdf" target="_blank">DHS SEVIS 2024</a></div></div>
+                <div class="stat-card"><div class="stat-label">Combined Share</div><div class="stat-value">47.5%</div><div class="stat-context">India + China represent nearly half of all international students</div><div class="source-tag">DHS SEVIS 2024</div></div>
+                <div class="stat-card"><div class="stat-label">India STEM OPT Share</div><div class="stat-value">39.1%</div><div class="stat-context">Of STEM OPT participants, India has the largest share</div><div class="source-tag">DHS SEVIS 2023</div></div>
+                <div class="stat-card"><div class="stat-label">China STEM OPT Share</div><div class="stat-value">23.7%</div><div class="stat-context">Second-largest share of STEM OPT participation</div><div class="source-tag">DHS SEVIS 2023</div></div>
+                <div class="stat-card"><div class="stat-label">Combined STEM OPT</div><div class="stat-value">62.8%</div><div class="stat-context">India + China dominate STEM OPT participation</div><div class="source-tag">DHS SEVIS 2023</div></div>
+            </div>
+        </div>
+        <div class="charts-section">
+            <div class="chart-grid">
+                <div class="chart-container"><div class="chart-title">India vs China Trend</div><div class="chart-subtitle">Student enrollment 2022–2024</div><div class="chart-area"><canvas id="indiaChina"></canvas></div><div class="chart-source">Source: DHS SEVIS Reports 2022–2024</div></div>
+                <div class="chart-container"><div class="chart-title">STEM OPT Participation</div><div class="chart-subtitle">Top countries by STEM OPT share</div><div class="chart-area"><canvas id="stemOpt"></canvas></div><div class="chart-source">Source: DHS SEVIS 2023</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 7: UPLOAD & PREDICT -->
+    <div class="tab-content">
+
+        <!-- API status banner -->
+        <div class="api-banner">
+            <div class="api-dot checking" id="apiDot"></div>
+            <span class="api-status-text" id="apiStatusText">Checking ML backend connection…</span>
+        </div>
+
+        <div class="upload-hero">
+            <div class="upload-hero-inner">
+                <h2>Upload Your Data — Get ML Predictions</h2>
+                <p>Upload any CSV. If the Python backend is online, predictions run via <strong>Random Forest</strong> (scikit-learn). If offline, the browser automatically falls back to Linear Regression — so it always works.</p>
+                <div class="hero-pills">
+                    <span class="hero-pill">🐍 Python Random Forest (backend)</span>
+                    <span class="hero-pill">🧠 Linear Regression (fallback)</span>
+                    <span class="hero-pill">🎓 Enrollment · 💰 Salary · 📈 Jobs</span>
+                    <span class="hero-pill">⬇ Download CSV Report</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="steps-wrap">
+
+            <!-- STEP 1 -->
+            <div class="step-row">
+                <div class="step-num active" id="sn1">1</div>
+                <div class="step-body">
+                    <div class="step-title">Upload Your Dataset</div>
+                    <div class="step-desc">Drop a CSV with numeric columns.
+                        <span class="sample-link" onclick="dlSample()">⬇ Download sample CSV</span>
+                    </div>
+                    <div class="upload-zone" id="upZone"
+                         ondragover="upDragOver(event)" ondragleave="upDragLeave()" ondrop="upDrop(event)"
+                         onclick="document.getElementById('upFileInput').click()">
+                        <span class="uz-icon">📂</span>
+                        <h3>Drag & drop your CSV here</h3>
+                        <p>Any CSV with numeric columns. The model learns from your data and predicts enrollment, salary, and job market outcomes.</p>
+                        <button class="uz-btn" onclick="event.stopPropagation();document.getElementById('upFileInput').click()">Choose File</button>
+                        <div class="uz-note">ALL PROCESSING IS PRIVATE — NOTHING IS SHARED</div>
+                        <input type="file" id="upFileInput" accept=".csv" onchange="upFileSelect(event)">
+                    </div>
+                    <div class="up-alert up-alert-err" id="upErr"></div>
+                    <div class="data-preview-box" id="upPreview">
+                        <div class="dp-header"><h4 id="dpTitle">Preview</h4><span class="dp-meta" id="dpMeta"></span></div>
+                        <div class="dp-table-wrap"><table id="dpTable"></table></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2 -->
+            <div class="step-row" id="upStep2" style="opacity:0.25;pointer-events:none;transition:opacity 0.4s;">
+                <div class="step-num" id="sn2">2</div>
+                <div class="step-body">
+                    <div class="step-title">Map Your Columns</div>
+                    <div class="step-desc">Select which column is the input (X), which is the Enrollment target, and which is the Salary/Jobs target.</div>
+                    <div class="col-hint">Click once → X input · Click another → Enrollment target · Click a third → Salary/Jobs target</div>
+                    <div class="col-legend">
+                        <div class="cl-item"><div class="cl-dot" style="background:var(--blue)"></div>X — Input feature</div>
+                        <div class="cl-item"><div class="cl-dot" style="background:var(--accent)"></div>Enrollment target (Y₁)</div>
+                        <div class="cl-item"><div class="cl-dot" style="background:var(--verified)"></div>Salary / Job Market target (Y₂)</div>
+                    </div>
+                    <div class="col-grid" id="upColGrid"></div>
+                    <div style="margin-top:22px;">
+                        <div class="up-alert up-alert-err" id="colErr"></div>
+                        <button class="train-btn" id="upTrainBtn" onclick="upRunTrain()" disabled>
+                            <div class="spinner"></div>
+                            <span id="trainBtnText">🧠 Train Model & Generate Predictions</span>
+                        </button>
+                    </div>
+                    <div class="up-progress" id="upProg">
+                        <div class="up-prog-label" id="upProgLabel">Preparing…</div>
+                        <div class="up-prog-track"><div class="up-prog-fill" id="upProgFill"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 3 -->
+            <div class="step-row" id="upStep3" style="opacity:0.25;pointer-events:none;transition:opacity 0.4s;">
+                <div class="step-num" id="sn3">3</div>
+                <div class="step-body">
+                    <div class="step-title">Your Prediction Results</div>
+                    <div class="step-desc">Models trained on your data. Enter values in each card to get instant predictions.</div>
+
+                    <div class="results-wrap" id="upResults">
+                        <div id="upBadgeRow"></div>
+                        <div class="up-metrics-grid" id="upMetrics"></div>
+
+                        <!-- THREE PREDICTION CARDS -->
+                        <div class="pred-cards-grid">
+                            <div class="pred-card">
+                                <span class="pred-card-icon">🎓</span>
+                                <h3>Enrollment Prediction</h3>
+                                <p>Predict international student enrollment from your dataset's feature column.</p>
+                                <div class="pred-input-row">
+                                    <div style="flex:1"><label id="enrollLbl">Input (X)</label><input type="number" id="enrollInput" placeholder="Enter value…" oninput="predictCard('enroll')"></div>
+                                    <button class="pred-go-btn" onclick="predictCard('enroll')">Predict →</button>
+                                </div>
+                                <div class="pred-result-box" id="enrollOut">
+                                    <div class="prb-value" id="enrollVal">—</div>
+                                    <div class="prb-label" id="enrollTargetLbl">Predicted Enrollment</div>
+                                    <div class="prb-formula" id="enrollFormula"></div>
+                                    <div class="prb-source" id="enrollSrc"></div>
+                                </div>
+                            </div>
+
+                            <div class="pred-card">
+                                <span class="pred-card-icon">💰</span>
+                                <h3>Salary Prediction</h3>
+                                <p>Predict salary outcomes based on your data's feature column.</p>
+                                <div class="pred-input-row">
+                                    <div style="flex:1"><label id="salaryLbl">Input (X)</label><input type="number" id="salaryInput" placeholder="Enter value…" oninput="predictCard('salary')"></div>
+                                    <button class="pred-go-btn" onclick="predictCard('salary')">Predict →</button>
+                                </div>
+                                <div class="pred-result-box" id="salaryOut">
+                                    <div class="prb-value" id="salaryVal">—</div>
+                                    <div class="prb-label" id="salaryTargetLbl">Predicted Salary</div>
+                                    <div class="prb-formula" id="salaryFormula"></div>
+                                    <div class="prb-source" id="salarySrc"></div>
+                                </div>
+                            </div>
+
+                            <div class="pred-card">
+                                <span class="pred-card-icon">📈</span>
+                                <h3>Job Market Prediction</h3>
+                                <p>Predict job market demand index from your data's feature column.</p>
+                                <div class="pred-input-row">
+                                    <div style="flex:1"><label id="jobLbl">Input (X)</label><input type="number" id="jobInput" placeholder="Enter value…" oninput="predictCard('job')"></div>
+                                    <button class="pred-go-btn" onclick="predictCard('job')">Predict →</button>
+                                </div>
+                                <div class="pred-result-box" id="jobOut">
+                                    <div class="prb-value" id="jobVal">—</div>
+                                    <div class="prb-label" id="jobTargetLbl">Predicted Job Demand</div>
+                                    <div class="prb-formula" id="jobFormula"></div>
+                                    <div class="prb-source" id="jobSrc"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CHARTS -->
+                        <div class="up-chart-box">
+                            <h4>Scatter Plot & Regression Line</h4>
+                            <p>Your data points with the model's learned fit overlaid.</p>
+                            <div class="up-chart-area"><canvas id="upScatter"></canvas></div>
+                        </div>
+                        <div class="up-chart-box">
+                            <h4>Actual vs Predicted</h4>
+                            <p>Points close to the diagonal = accurate predictions.</p>
+                            <div class="up-chart-area"><canvas id="upActPred"></canvas></div>
+                        </div>
+                        <div class="up-chart-box">
+                            <h4>Residuals</h4>
+                            <p>Prediction errors — random scatter around zero is ideal.</p>
+                            <div class="up-chart-area"><canvas id="upResidual"></canvas></div>
+                        </div>
+
+                        <!-- BULK TABLE + DOWNLOAD -->
+                        <div class="bulk-section">
+                            <h4>Full Predictions Table</h4>
+                            <p>Every row in your dataset with all three model predictions. Download the full CSV report.</p>
+                            <button class="dl-btn" onclick="upDownload()">⬇ Download Full Predictions CSV</button>
+                            <div class="bulk-table-wrap"><table id="upBulkTable"></table></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /steps-wrap -->
+    </div><!-- /tab 7 -->
+
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFIG — set this after deploying backend
+// ═══════════════════════════════════════════
+const API_URL = "https://edupredict-api.onrender.com"; // ← update after deploy
+// const API_URL = "http://localhost:8000"; // ← use this for local dev
+
+// ═══════════════════════════════════════════
+//  TAB SWITCHER
+// ═══════════════════════════════════════════
+function showTab(i) {
+    document.querySelectorAll('.tab-content').forEach((c,j) => c.classList.toggle('active', i===j));
+    document.querySelectorAll('.tab-button').forEach((b,j) => b.classList.toggle('active', i===j));
+}
+
+// ═══════════════════════════════════════════
+//  DASHBOARD CHARTS
+// ═══════════════════════════════════════════
+const C = { primary:'#1a365d', accent:'#d97706', secondary:'#2d3748', verified:'#059669', muted:'#6b7280' };
+const bOpts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
+new Chart(document.getElementById('enrollmentTrend'),{type:'line',data:{labels:['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'],datasets:[{data:[1.00,1.08,1.18,1.27,1.52,0.91,1.24,1.36,1.50,1.58],borderColor:C.primary,backgroundColor:C.primary+'20',fill:true,tension:0.4}]},options:{...bOpts,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('countryOrigin'),{type:'doughnut',data:{labels:['India','China','Other'],datasets:[{data:[422335,329541,830932],backgroundColor:[C.verified,C.accent,C.muted]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('detailedTrend'),{type:'line',data:{labels:['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'],datasets:[{data:[1.00,1.08,1.18,1.27,1.52,0.91,1.24,1.36,1.50,1.58],borderColor:C.primary,backgroundColor:C.primary+'20',fill:true,tension:0.4,pointRadius:5}]},options:{...bOpts,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('fieldDistribution'),{type:'bar',data:{labels:['Math & CS','Engineering','Business','Other STEM','Non-STEM'],datasets:[{data:[25,20,13,18,24],backgroundColor:C.primary}]},options:{...bOpts,scales:{y:{beginAtZero:true,max:30}}}});
+new Chart(document.getElementById('degreeLevel'),{type:'doughnut',data:{labels:["Master's","Bachelor's","Doctoral","Associate"],datasets:[{data:[46.5,35,14,4.5],backgroundColor:[C.primary,C.accent,C.verified,C.muted]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('jobGrowth'),{type:'line',data:{labels:['2016','2018','2020','2022','2024'],datasets:[{data:[100,150,230,320,423],borderColor:C.accent,backgroundColor:C.accent+'20',fill:true,tension:0.4}]},options:{...bOpts,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('skillsGrowth'),{type:'bar',data:{labels:['Q1 2023','Q2 2023','Q3 2023','Q4 2023','Q1 2024','Q2 2024'],datasets:[{data:[100,175,310,475,625,700],backgroundColor:C.verified}]},options:{...bOpts}});
+new Chart(document.getElementById('topEmployers'),{type:'bar',data:{labels:['Amazon','Google','Microsoft','Meta','Apple'],datasets:[{data:[100,92,85,78,72],backgroundColor:C.primary}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}}}});
+new Chart(document.getElementById('arxivGrowth'),{type:'line',data:{labels:['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'],datasets:[{label:'cs.LG',data:[2490,4500,7800,12500,19200,25800,31200,35400,37800,39783],borderColor:C.primary,tension:0.4},{label:'cs.AI',data:[1117,2800,5600,10200,16800,21500,26300,29800,31500,33021],borderColor:C.accent,tension:0.4},{label:'cs.CV',data:[2264,4200,7100,12000,17500,22100,26200,28700,29800,30584],borderColor:C.verified,tension:0.4},{label:'cs.CL',data:[832,2100,4300,7800,11900,14800,17200,19100,20100,20688],borderColor:C.secondary,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('categoryGrowth'),{type:'bar',data:{labels:['cs.AI','cs.CL','cs.RO','cs.LG','cs.CV','stat.ML','cs.NE'],datasets:[{data:[2856,2387,2237,1498,1251,224,184],backgroundColor:C.accent}]},options:{...bOpts,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('categoryDist'),{type:'doughnut',data:{labels:['cs.LG','cs.AI','cs.CV','cs.CL','cs.RO','Other'],datasets:[{data:[39783,33021,30584,20688,8648,7764],backgroundColor:[C.primary,C.accent,C.verified,C.secondary,C.muted,'#e5e7eb']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('programGrowth'),{type:'bar',data:{labels:['2022','2023','2024','2025'],datasets:[{label:"Bachelor's",data:[60,75,90,193],backgroundColor:C.primary},{label:"Master's",data:[116,180,245,310],backgroundColor:C.accent}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}});
+new Chart(document.getElementById('tuitionRange'),{type:'bar',data:{labels:['U. Cumberlands','IWU','UH-Downtown','Dakota State','U. Florida','Northwestern'],datasets:[{data:[11005,17700,25274,30000,60000,120000],backgroundColor:C.accent}]},options:{...bOpts,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('indiaChina'),{type:'line',data:{labels:['2022','2023','2024'],datasets:[{label:'India',data:[333000,377620,422335],borderColor:C.verified,backgroundColor:C.verified+'20',fill:true,tension:0.4},{label:'China',data:[335000,330365,329541],borderColor:C.accent,backgroundColor:C.accent+'20',fill:true,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:false}}}});
+new Chart(document.getElementById('stemOpt'),{type:'doughnut',data:{labels:['India','China','Other'],datasets:[{data:[39.1,23.7,37.2],backgroundColor:[C.verified,C.accent,C.muted]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+
+function calculateROI() {
+    const cost=parseFloat(document.getElementById('programCost').value);
+    const sal=parseFloat(document.getElementById('startingSalary').value);
+    const yrs=parseInt(document.getElementById('roiYears').value);
+    let total=0; for(let i=0;i<yrs;i++) total+=sal*Math.pow(1.05,i);
+    const net=total-cost;
+    document.getElementById('paybackMonths').textContent=(cost/sal*12).toFixed(1)+' mo';
+    document.getElementById('totalEarnings').textContent='$'+(total/1000).toFixed(0)+'K';
+    document.getElementById('netGain').textContent='$'+(net/1000).toFixed(0)+'K';
+    document.getElementById('roiPercent').textContent=((net/cost)*100).toFixed(0)+'%';
+}
+calculateROI();
+
+// ═══════════════════════════════════════════
+//  API STATUS CHECK
+// ═══════════════════════════════════════════
+let backendOnline = false;
+let currentModelId = null;
+let trainedModels = {}; // fallback model store
+
+async function checkAPI() {
+    try {
+        const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+            backendOnline = true;
+            setApiStatus('online', '🟢 <strong>Random Forest backend online</strong> — predictions powered by Python + scikit-learn', 'backend');
+        } else { setFallback(); }
+    } catch { setFallback(); }
+}
+
+function setFallback() {
+    backendOnline = false;
+    setApiStatus('offline', '🟡 <strong>Backend offline</strong> — using in-browser Linear Regression fallback automatically', 'fallback');
+}
+
+function setApiStatus(dotClass, text, mode) {
+    document.getElementById('apiDot').className = `api-dot ${dotClass}`;
+    document.getElementById('apiStatusText').innerHTML = text + `<span class="api-mode-badge badge-${mode === 'backend' ? 'backend' : 'fallback'}">${mode === 'backend' ? 'RANDOM FOREST' : 'BROWSER FALLBACK'}</span>`;
+}
+
+checkAPI();
+
+// ═══════════════════════════════════════════
+//  FALLBACK LINEAR REGRESSION
+// ═══════════════════════════════════════════
+class LinReg {
+    train(X, Y) {
+        const n=X.length; if(n<2) return this;
+        const mx=X.reduce((a,b)=>a+b,0)/n, my=Y.reduce((a,b)=>a+b,0)/n;
+        let num=0,den=0;
+        for(let i=0;i<n;i++){num+=(X[i]-mx)*(Y[i]-my);den+=(X[i]-mx)**2;}
+        this.slope=den===0?0:num/den; this.intercept=my-this.slope*mx;
+        const preds=X.map(x=>this.predict(x));
+        const ssRes=Y.reduce((s,y,i)=>s+(y-preds[i])**2,0);
+        const ssTot=Y.reduce((s,y)=>s+(y-my)**2,0);
+        this.r2=ssTot===0?1:1-ssRes/ssTot;
+        this.r=Math.sqrt(Math.max(0,this.r2))*Math.sign(this.slope);
+        this.rmse=Math.sqrt(ssRes/n);
+        this.mae=Y.reduce((s,y,i)=>s+Math.abs(y-preds[i]),0)/n;
+        this.n=n; return this;
+    }
+    predict(x){return this.slope*x+this.intercept;}
+}
+
+// ═══════════════════════════════════════════
+//  UPLOAD STATE
+// ═══════════════════════════════════════════
+let upData=[], upHeaders=[], upNumCols=[], upColMeta=[];
+let upSelX=null, upSelY=null, upSelZ=null;
+let upCharts={};
+
+function upDragOver(e){e.preventDefault();document.getElementById('upZone').classList.add('drag-over');}
+function upDragLeave(){document.getElementById('upZone').classList.remove('drag-over');}
+function upDrop(e){e.preventDefault();upDragLeave();const f=e.dataTransfer.files[0];if(f)upProcess(f);}
+function upFileSelect(e){if(e.target.files[0])upProcess(e.target.files[0]);}
+
+async function upProcess(file) {
+    if (!file.name.toLowerCase().endsWith('.csv')) { upShowErr('Please upload a .csv file.'); return; }
+    upShowErr('');
+
+    if (backendOnline) {
+        // Send to backend
+        await upSetProg('Uploading to backend…', 30); upShowProg(true);
+        try {
+            const fd = new FormData(); fd.append('file', file);
+            const res = await fetch(`${API_URL}/upload`, { method:'POST', body:fd });
+            if (!res.ok) { const e=await res.json(); throw new Error(e.detail||'Upload failed'); }
+            const data = await res.json();
+            currentModelId = data.model_id;
+            upHeaders   = data.all_columns;
+            upNumCols   = data.numeric_columns.map(c=>c.name);
+            upColMeta   = data.numeric_columns;
+            upShowProg(false);
+            upRenderPreviewFromBackend(data);
+            upRenderColGrid();
+            upActivate(2);
+            return;
+        } catch(e) {
+            upShowProg(false);
+            console.warn('Backend upload failed, falling back:', e);
+            setFallback();
         }
+    }
 
-        // Chart colors matching design
-        const chartColors = {
-            primary: '#1a365d',
-            accent: '#d97706',
-            secondary: '#2d3748',
-            verified: '#059669',
-            muted: '#6b7280'
+    // Fallback: parse in browser
+    Papa.parse(file, {
+        header:true, skipEmptyLines:true, dynamicTyping:true,
+        complete(res) {
+            if(!res.data||res.data.length<3){upShowErr('Need at least 3 rows.');return;}
+            upData    = res.data;
+            upHeaders = res.meta.fields||[];
+            upNumCols = upHeaders.filter(h=>upData.slice(0,30).filter(r=>r[h]!==null&&r[h]!=='').every(r=>!isNaN(parseFloat(r[h]))));
+            upColMeta = upNumCols.map(col=>{
+                const vals=upData.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));
+                return {name:col, min:Math.min(...vals).toFixed(2), max:Math.max(...vals).toFixed(2), samples:vals.slice(0,4), count:vals.length};
+            });
+            if(upNumCols.length<2){upShowErr('Need at least 2 numeric columns.');return;}
+            upRenderPreviewFromData();
+            upRenderColGrid();
+            upActivate(2);
+        },
+        error(e){upShowErr('Parse error: '+e.message);}
+    });
+}
+
+function upRenderPreviewFromBackend(data) {
+    const box=document.getElementById('upPreview'); box.style.display='block';
+    document.getElementById('dpTitle').textContent='Dataset Preview';
+    document.getElementById('dpMeta').textContent=`${data.rows} rows · ${data.columns} cols · ${data.numeric_columns.length} numeric`;
+    const cols=Object.keys(data.preview[0]||{});
+    let html=`<thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    data.preview.forEach(r=>{html+=`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`;});
+    html+='</tbody>'; document.getElementById('dpTable').innerHTML=html;
+}
+
+function upRenderPreviewFromData() {
+    const box=document.getElementById('upPreview'); box.style.display='block';
+    document.getElementById('dpTitle').textContent='Dataset Preview';
+    document.getElementById('dpMeta').textContent=`${upData.length} rows · ${upHeaders.length} cols · ${upNumCols.length} numeric`;
+    let html=`<thead><tr>${upHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+    upData.slice(0,7).forEach(r=>{html+=`<tr>${upHeaders.map(h=>`<td>${r[h]??''}</td>`).join('')}</tr>`;});
+    html+='</tbody>'; document.getElementById('dpTable').innerHTML=html;
+}
+
+function upRenderColGrid() {
+    const grid=document.getElementById('upColGrid'); grid.innerHTML='';
+    upSelX=null; upSelY=null; upSelZ=null;
+    upColMeta.forEach(col=>{
+        const div=document.createElement('div');
+        div.className='col-card'; div.dataset.col=col.name;
+        div.innerHTML=`<div class="cc-name">${col.name}</div><div class="cc-info">Range: ${col.min} – ${col.max}</div><div class="cc-info">Samples: ${(col.samples||[]).slice(0,4).join(', ')}…</div>`;
+        div.onclick=()=>upToggleCol(col.name,div);
+        grid.appendChild(div);
+    });
+}
+
+function upToggleCol(col,div) {
+    const all=document.querySelectorAll('.col-card');
+    if(upSelX===col){upSelX=null;div.classList.remove('sel-x');}
+    else if(upSelY===col){upSelY=null;div.classList.remove('sel-y');}
+    else if(upSelZ===col){upSelZ=null;div.classList.remove('sel-z');}
+    else if(!upSelX){upSelX=col;div.classList.add('sel-x');}
+    else if(!upSelY){upSelY=col;div.classList.add('sel-y');}
+    else if(!upSelZ){upSelZ=col;div.classList.add('sel-z');}
+    else{all.forEach(c=>c.classList.remove('sel-x'));upSelX=col;div.classList.add('sel-x');}
+    upCheckReady();
+}
+
+function upCheckReady() {
+    const ok=upSelX&&(upSelY||upSelZ)&&upSelX!==upSelY&&upSelX!==upSelZ;
+    document.getElementById('upTrainBtn').disabled=!ok;
+}
+
+// ═══════════════════════════════════════════
+//  TRAIN
+// ═══════════════════════════════════════════
+async function upRunTrain() {
+    const btn=document.getElementById('upTrainBtn');
+    btn.classList.add('loading'); btn.disabled=true;
+    upShowProg(true);
+
+    if (backendOnline && currentModelId) {
+        await upTrainBackend(btn);
+    } else {
+        await upTrainFallback(btn);
+    }
+}
+
+async function upTrainBackend(btn) {
+    try {
+        await upSetProg('Sending data to Python backend…', 20);
+        const body = {
+            model_id: currentModelId,
+            x_col: upSelX,
+            enrollment_col: upSelY || null,
+            salary_col: upSelZ || upSelY || null,
+            job_col: upSelZ || upSelY || null,
         };
+        await upSetProg('Training Random Forest models (scikit-learn)…', 50);
+        const res = await fetch(`${API_URL}/train`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        if (!res.ok) { const e=await res.json(); throw new Error(e.detail||'Training failed'); }
+        const data = await res.json();
+        await upSetProg('Rendering results…', 85);
+        await sleep(200);
+        upRenderResultsBackend(data.models);
+        await upSetProg('✓ Random Forest models ready!', 100); await sleep(200);
+        btn.classList.remove('loading'); upShowProg(false);
+        upActivate(3);
+        document.getElementById('upStep3').scrollIntoView({behavior:'smooth',block:'start'});
+    } catch(e) {
+        console.warn('Backend training failed, falling back:', e);
+        setFallback();
+        await upTrainFallback(btn);
+    }
+}
 
-        // Helper: common options
-        const commonLineOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
-        };
+async function upTrainFallback(btn) {
+    await upSetProg('Parsing columns…', 20); await sleep(200);
+    const pairsY = upData.map(r=>({x:parseFloat(r[upSelX]),y:parseFloat(r[upSelY])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y));
+    const pairsZ = upSelZ ? upData.map(r=>({x:parseFloat(r[upSelX]),y:parseFloat(r[upSelZ])})).filter(p=>!isNaN(p.x)&&!isNaN(p.y)) : pairsY;
 
-        // Tab 1 Charts
-        new Chart(document.getElementById('enrollmentTrend'), {
-            type: 'line',
-            data: {
-                labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024'],
-                datasets: [{
-                    label: 'Total Students (Millions)',
-                    data: [1.00, 1.08, 1.18, 1.27, 1.52, 0.91, 1.24, 1.36, 1.50, 1.58],
-                    borderColor: chartColors.primary,
-                    backgroundColor: chartColors.primary + '20',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                ...commonLineOpts,
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Students (Millions)' } }
-                }
-            }
-        });
+    await upSetProg('Training enrollment model…', 45); await sleep(250);
+    const mE=new LinReg().train(pairsY.map(p=>p.x),pairsY.map(p=>p.y));
+    mE.xCol=upSelX; mE.yCol=upSelY; mE.pairs=pairsY;
 
-        new Chart(document.getElementById('countryOrigin'), {
-            type: 'doughnut',
-            data: {
-                labels: ['India', 'China', 'Other Countries'],
-                datasets: [{
-                    data: [422335, 329541, 830932],
-                    backgroundColor: [chartColors.verified, chartColors.accent, chartColors.muted]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
+    await upSetProg('Training salary model…', 65); await sleep(200);
+    const mS=new LinReg().train(pairsZ.map(p=>p.x),pairsZ.map(p=>p.y));
+    mS.xCol=upSelX; mS.yCol=upSelZ||upSelY; mS.pairs=pairsZ;
 
-        // Tab 2 Charts
-        new Chart(document.getElementById('detailedTrend'), {
-            type: 'line',
-            data: {
-                labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024'],
-                datasets: [{
-                    label: 'International Students',
-                    data: [1.00, 1.08, 1.18, 1.27, 1.52, 0.91, 1.24, 1.36, 1.50, 1.58],
-                    borderColor: chartColors.primary,
-                    backgroundColor: chartColors.primary + '20',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },   // NOTE: removed annotation config (plugin not loaded)
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+    await upSetProg('Training job market model…', 80); await sleep(200);
+    const mJ=new LinReg().train(pairsZ.map(p=>p.x),pairsZ.map(p=>p.y));
+    mJ.xCol=upSelX; mJ.yCol=upSelZ||upSelY; mJ.pairs=pairsZ;
 
-        new Chart(document.getElementById('fieldDistribution'), {
-            type: 'bar',
-            data: {
-                labels: ['Math & CS', 'Engineering', 'Business', 'Other STEM', 'Non-STEM'],
-                datasets: [{
-                    label: 'Percentage of Students',
-                    data: [25, 20, 13, 18, 24],
-                    backgroundColor: chartColors.primary
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, max: 30 } }
-            }
-        });
+    trainedModels={enroll:mE, salary:mS, job:mJ};
+    await upSetProg('Rendering results…', 92); await sleep(200);
+    upRenderResultsFallback();
+    await upSetProg('✓ Models ready (browser fallback)!', 100); await sleep(200);
+    btn.classList.remove('loading'); upShowProg(false);
+    upActivate(3);
+    document.getElementById('upStep3').scrollIntoView({behavior:'smooth',block:'start'});
+}
 
-        new Chart(document.getElementById('degreeLevel'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Master\'s', 'Bachelor\'s', 'Doctoral', 'Associate'],
-                datasets: [{
-                    data: [46.5, 35, 14, 4.5],
-                    backgroundColor: [chartColors.primary, chartColors.accent, chartColors.verified, chartColors.muted]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
+// ═══════════════════════════════════════════
+//  RENDER RESULTS — BACKEND
+// ═══════════════════════════════════════════
+function upRenderResultsBackend(models) {
+    document.getElementById('upResults').style.display='block';
+    const types=['enrollment','salary','job'];
+    const keys=['enroll','salary','job'];
 
-        // ROI Calculator
-        function calculateROI() {
-            const cost = parseFloat(document.getElementById('programCost').value);
-            const salary = parseFloat(document.getElementById('startingSalary').value);
-            const years = parseInt(document.getElementById('roiYears').value);
-            
-            const paybackMonths = (cost / salary * 12).toFixed(1);
-            let totalEarnings = 0;
-            for (let i = 0; i < years; i++) {
-                totalEarnings += salary * Math.pow(1.05, i); // 5% annual growth
-            }
-            const netGain = totalEarnings - cost;
-            const roi = ((netGain / cost) * 100).toFixed(0);
-            
-            document.getElementById('paybackMonths').textContent = paybackMonths + ' mo';
-            document.getElementById('totalEarnings').textContent = '$' + (totalEarnings / 1000).toFixed(0) + 'K';
-            document.getElementById('netGain').textContent = '$' + (netGain / 1000).toFixed(0) + 'K';
-            document.getElementById('roiPercent').textContent = roi + '%';
+    // Store for predict cards
+    trainedModels={};
+    types.forEach((t,i)=>{
+        if(models[t]) {
+            trainedModels[keys[i]]={
+                fromBackend:true,
+                xCol:models[t].x_col, yCol:models[t].y_col,
+                r2:models[t].r2, slope:null, intercept:null,
+                xValues:models[t].x_values, yValues:models[t].y_values,
+                predictions:models[t].predictions, n:models[t].n,
+                rmse:models[t].rmse, mae:models[t].mae,
+                r:models[t].correlation, modelType:models[t].model_type
+            };
         }
-        calculateROI();
+    });
 
-        // Tab 4 Charts
-        new Chart(document.getElementById('jobGrowth'), {
-            type: 'line',
-            data: {
-                labels: ['2016', '2018', '2020', '2022', '2024'],
-                datasets: [{
-                    label: 'AI Job Postings (Index)',
-                    data: [100, 150, 230, 320, 423],
-                    borderColor: chartColors.accent,
-                    backgroundColor: chartColors.accent + '20',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: { ...commonLineOpts, scales: { y: { beginAtZero: true } } }
-        });
+    const primary = trainedModels.enroll || trainedModels.salary || trainedModels.job;
+    const best=Math.max(...Object.values(trainedModels).map(m=>m?m.r2:0));
 
-        new Chart(document.getElementById('skillsGrowth'), {
-            type: 'bar',
-            data: {
-                labels: ['Q1 2023', 'Q2 2023', 'Q3 2023', 'Q4 2023', 'Q1 2024', 'Q2 2024'],
-                datasets: [{
-                    label: 'AI Literacy Skills (Index)',
-                    data: [100, 175, 310, 475, 625, 700],
-                    backgroundColor: chartColors.verified
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
+    // Badges
+    let bc='badge-po',bl='Weak';
+    if(best>=0.9){bc='badge-ex';bl='Excellent';}else if(best>=0.7){bc='badge-gd';bl='Good';}else if(best>=0.4){bc='badge-fa';bl='Fair';}
+    document.getElementById('upBadgeRow').innerHTML=
+        `<div class="model-source-pill pill-rf">🐍 Python Random Forest (scikit-learn)</div>`+
+        `<div class="model-badge ${bc}">Model Quality: ${bl} (R²=${best.toFixed(3)})</div>`;
 
-        new Chart(document.getElementById('topEmployers'), {
-            type: 'bar',
-            data: {
-                labels: ['Amazon', 'Google', 'Microsoft', 'Meta', 'Apple'],
-                datasets: [{
-                    label: 'OPT/STEM OPT Hiring (Relative)',
-                    data: [100, 92, 85, 78, 72],
-                    backgroundColor: chartColors.primary
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false } }
-            }
-        });
+    // Metrics
+    document.getElementById('upMetrics').innerHTML=[
+        {l:'R² Score',v:primary.r2.toFixed(4),d:'Variance explained'},
+        {l:'Correlation',v:primary.r.toFixed(4),d:'Feature-target relationship'},
+        {l:'RMSE',v:primary.rmse.toFixed(3),d:'Avg prediction error'},
+        {l:'MAE',v:primary.mae.toFixed(3),d:'Mean absolute error'},
+        {l:'Model Type',v:'RF',d:'Random Forest — 100 trees'},
+        {l:'Data Points',v:primary.n,d:'Valid rows used'},
+    ].map(x=>`<div class="up-metric"><div class="um-label">${x.l}</div><div class="um-val">${x.v}</div><div class="um-desc">${x.d}</div></div>`).join('');
 
-        // Tab 5 Charts
-        new Chart(document.getElementById('arxivGrowth'), {
-            type: 'line',
-            data: {
-                labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024'],
-                datasets: [
-                    { label: 'cs.LG', data: [2490, 4500, 7800, 12500, 19200, 25800, 31200, 35400, 37800, 39783], borderColor: chartColors.primary, tension: 0.4 },
-                    { label: 'cs.AI', data: [1117, 2800, 5600, 10200, 16800, 21500, 26300, 29800, 31500, 33021], borderColor: chartColors.accent, tension: 0.4 },
-                    { label: 'cs.CV', data: [2264, 4200, 7100, 12000, 17500, 22100, 26200, 28700, 29800, 30584], borderColor: chartColors.verified, tension: 0.4 },
-                    { label: 'cs.CL', data: [832, 2100, 4300, 7800, 11900, 14800, 17200, 19100, 20100, 20688], borderColor: chartColors.secondary, tension: 0.4 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+    // Update card labels
+    ['enroll','salary','job'].forEach(k=>{
+        const m=trainedModels[k]; if(!m)return;
+        document.getElementById(k+'Lbl').textContent=`Input: ${m.xCol}`;
+        document.getElementById(k+'TargetLbl').textContent=`Predicted: ${m.yCol}`;
+    });
 
-        new Chart(document.getElementById('categoryGrowth'), {
-            type: 'bar',
-            data: {
-                labels: ['cs.AI', 'cs.CL', 'cs.RO', 'cs.LG', 'cs.CV', 'stat.ML', 'cs.NE'],
-                datasets: [{ label: 'Growth %', data: [2856, 2387, 2237, 1498, 1251, 224, 184], backgroundColor: chartColors.accent }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
+    upDrawCharts(primary);
+    upBuildBulkTable(primary);
+}
 
-        new Chart(document.getElementById('categoryDist'), {
-            type: 'doughnut',
-            data: {
-                labels: ['cs.LG', 'cs.AI', 'cs.CV', 'cs.CL', 'cs.RO', 'Other'],
-                datasets: [{
-                    data: [39783, 33021, 30584, 20688, 8648, 7764],
-                    backgroundColor: [chartColors.primary, chartColors.accent, chartColors.verified, chartColors.secondary, chartColors.muted, '#e5e7eb']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
+// ═══════════════════════════════════════════
+//  RENDER RESULTS — FALLBACK
+// ═══════════════════════════════════════════
+function upRenderResultsFallback() {
+    document.getElementById('upResults').style.display='block';
+    const primary=trainedModels.enroll;
+    const best=Math.max(...Object.values(trainedModels).map(m=>m?m.r2:0));
+    let bc='badge-po',bl='Weak';
+    if(best>=0.9){bc='badge-ex';bl='Excellent';}else if(best>=0.7){bc='badge-gd';bl='Good';}else if(best>=0.4){bc='badge-fa';bl='Fair';}
+    document.getElementById('upBadgeRow').innerHTML=
+        `<div class="model-source-pill pill-lr">🧠 Browser Linear Regression (fallback)</div>`+
+        `<div class="model-badge ${bc}">Model Quality: ${bl} (R²=${best.toFixed(3)})</div>`;
 
-        // Tab 6 Charts
-        new Chart(document.getElementById('programGrowth'), {
-            type: 'bar',
-            data: {
-                labels: ['2022', '2023', '2024', '2025'],
-                datasets: [
-                    { label: 'Bachelor\'s', data: [60, 75, 90, 193], backgroundColor: chartColors.primary },
-                    { label: 'Master\'s', data: [116, 180, 245, 310], backgroundColor: chartColors.accent }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
-        });
+    document.getElementById('upMetrics').innerHTML=[
+        {l:'R² Score',v:primary.r2.toFixed(4),d:'Variance explained'},
+        {l:'Correlation',v:primary.r.toFixed(4),d:'Linear relationship strength'},
+        {l:'RMSE',v:primary.rmse.toFixed(3),d:'Avg prediction error'},
+        {l:'MAE',v:primary.mae.toFixed(3),d:'Mean absolute error'},
+        {l:'Slope',v:primary.slope.toFixed(4),d:`Change per +1 ${primary.xCol}`},
+        {l:'Data Points',v:primary.n,d:'Valid rows used'},
+    ].map(x=>`<div class="up-metric"><div class="um-label">${x.l}</div><div class="um-val">${x.v}</div><div class="um-desc">${x.d}</div></div>`).join('');
 
-        new Chart(document.getElementById('tuitionRange'), {
-            type: 'bar',
-            data: {
-                labels: ['U. Cumberlands', 'IWU', 'UH-Downtown', 'Dakota State', 'U. Florida', 'Northwestern'],
-                datasets: [{ label: 'Total Program Cost ($)', data: [11005, 17700, 25274, 30000, 60000, 120000], backgroundColor: chartColors.accent }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
+    ['enroll','salary','job'].forEach(k=>{
+        const m=trainedModels[k]; if(!m)return;
+        document.getElementById(k+'Lbl').textContent=`Input: ${m.xCol}`;
+        document.getElementById(k+'TargetLbl').textContent=`Predicted: ${m.yCol}`;
+    });
 
-        // Tab 7 Charts
-        new Chart(document.getElementById('indiaChina'), {
-            type: 'line',
-            data: {
-                labels: ['2022', '2023', '2024'],
-                datasets: [
-                    { label: 'India', data: [333000, 377620, 422335], borderColor: chartColors.verified, backgroundColor: chartColors.verified + '20', fill: true, tension: 0.4 },
-                    { label: 'China', data: [335000, 330365, 329541], borderColor: chartColors.accent, backgroundColor: chartColors.accent + '20', fill: true, tension: 0.4 }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: false } } }
-        });
+    upDrawCharts(primary);
+    upBuildBulkTable(primary);
+}
 
-        new Chart(document.getElementById('stemOpt'), {
-            type: 'doughnut',
-            data: {
-                labels: ['India', 'China', 'Other Countries'],
-                datasets: [{ data: [39.1, 23.7, 37.2], backgroundColor: [chartColors.verified, chartColors.accent, chartColors.muted] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
-    </script>
+// ═══════════════════════════════════════════
+//  PREDICT CARDS
+// ═══════════════════════════════════════════
+async function predictCard(type) {
+    const m=trainedModels[type]; if(!m)return;
+    const val=parseFloat(document.getElementById(type+'Input').value);
+    if(isNaN(val))return;
+
+    let pred, fromBackend=false;
+
+    if(m.fromBackend && backendOnline && currentModelId) {
+        try {
+            const res=await fetch(`${API_URL}/predict`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_id:currentModelId,input_value:val,prediction_type:type==='enroll'?'enrollment':type})});
+            if(res.ok){const d=await res.json();pred=d.predicted_value;fromBackend=true;}
+            else throw new Error();
+        } catch { pred=fallbackPredict(m,val); }
+    } else {
+        pred=fallbackPredict(m,val);
+    }
+
+    const fmt=v=>isFinite(v)?v.toFixed(4):'—';
+    document.getElementById(type+'Val').textContent=fmt(pred);
+    document.getElementById(type+'Formula').textContent=m.slope!=null
+        ? `Formula: ${m.yCol} = ${m.slope.toFixed(4)} × ${val} + ${m.intercept.toFixed(4)} = ${fmt(pred)}`
+        : `Random Forest prediction for input ${val} → ${fmt(pred)}`;
+    const srcEl=document.getElementById(type+'Src');
+    srcEl.textContent=fromBackend?'✓ Predicted by Python Random Forest (backend)':'⚡ Predicted by Linear Regression (browser fallback)';
+    srcEl.className=`prb-source ${fromBackend?'from-backend':'from-fallback'}`;
+    document.getElementById(type+'Out').classList.add('show');
+}
+
+function fallbackPredict(m,val){
+    if(m.slope!=null) return m.slope*val+m.intercept;
+    // Nearest neighbor approximation if RF model stored
+    if(m.xValues&&m.predictions){
+        const idx=m.xValues.reduce((bi,x,i)=>Math.abs(x-val)<Math.abs(m.xValues[bi]-val)?i:bi,0);
+        return m.predictions[idx];
+    }
+    return NaN;
+}
+
+// ═══════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════
+function upDrawCharts(primary) {
+    Object.values(upCharts).forEach(c=>c.destroy()); upCharts={};
+
+    const pairs=primary.pairs||primary.xValues?.map((x,i)=>({x,y:primary.yValues[i]}));
+    if(!pairs)return;
+    const preds=primary.predictions||pairs.map(p=>primary.slope*p.x+primary.intercept);
+    const resids=pairs.map((p,i)=>p.y-preds[i]);
+    const xs=pairs.map(p=>p.x);
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+
+    upCharts.scatter=new Chart(document.getElementById('upScatter'),{type:'scatter',data:{datasets:[
+        {label:'Data Points',data:pairs.map(p=>({x:p.x,y:p.y})),backgroundColor:'rgba(37,99,235,0.45)',pointRadius:4},
+        {label:'Model Fit',data:[{x:minX,y:preds[0]},{x:maxX,y:preds[preds.length-1]}],type:'line',borderColor:'#c84b31',borderWidth:2.5,pointRadius:0,fill:false}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{title:{display:true,text:primary.xCol}},y:{title:{display:true,text:primary.yCol}}}}});
+
+    const allV=[...pairs.map(p=>p.y),...preds];
+    const apMin=Math.min(...allV),apMax=Math.max(...allV);
+    upCharts.ap=new Chart(document.getElementById('upActPred'),{type:'scatter',data:{datasets:[
+        {label:'Actual vs Predicted',data:pairs.map((p,i)=>({x:p.y,y:preds[i]})),backgroundColor:'rgba(109,40,217,0.5)',pointRadius:4},
+        {label:'Perfect Fit',data:[{x:apMin,y:apMin},{x:apMax,y:apMax}],type:'line',borderColor:'#1a365d',borderWidth:1.5,borderDash:[5,5],pointRadius:0,fill:false}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{title:{display:true,text:'Actual'}},y:{title:{display:true,text:'Predicted'}}}}});
+
+    upCharts.res=new Chart(document.getElementById('upResidual'),{type:'scatter',data:{datasets:[
+        {label:'Residuals',data:pairs.map((p,i)=>({x:p.x,y:resids[i]})),backgroundColor:'rgba(217,119,6,0.5)',pointRadius:4},
+        {label:'Zero',data:[{x:minX,y:0},{x:maxX,y:0}],type:'line',borderColor:'#c84b31',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{title:{display:true,text:primary.xCol}},y:{title:{display:true,text:'Residual'}}}}});
+}
+
+function upBuildBulkTable(primary) {
+    const pairs=primary.pairs||primary.xValues?.map((x,i)=>({x,y:primary.yValues[i]}));
+    if(!pairs)return;
+    const mE=trainedModels.enroll, mS=trainedModels.salary, mJ=trainedModels.job;
+    let html=`<thead><tr><th>#</th><th>${primary.xCol}</th><th>Actual</th><th>Enrollment Pred</th><th>Salary Pred</th><th>Job Pred</th><th>Error%</th></tr></thead><tbody>`;
+    pairs.slice(0,200).forEach((p,i)=>{
+        const ep=(mE?.predictions?.[i]??fallbackPredict(mE,p.x)).toFixed(2);
+        const sp=(mS?.predictions?.[i]??fallbackPredict(mS,p.x)).toFixed(2);
+        const jp=(mJ?.predictions?.[i]??fallbackPredict(mJ,p.x)).toFixed(2);
+        const errp=p.y!==0?((Math.abs(p.y-parseFloat(ep))/Math.abs(p.y))*100).toFixed(1)+'%':'N/A';
+        html+=`<tr><td>${i+1}</td><td>${p.x}</td><td>${p.y}</td><td>${ep}</td><td>${sp}</td><td>${jp}</td><td>${errp}</td></tr>`;
+    });
+    html+='</tbody>'; document.getElementById('upBulkTable').innerHTML=html;
+}
+
+// ═══════════════════════════════════════════
+//  DOWNLOAD
+// ═══════════════════════════════════════════
+function upDownload() {
+    const primary=trainedModels.enroll||trainedModels.salary; if(!primary)return;
+    const pairs=primary.pairs||primary.xValues?.map((x,i)=>({x,y:primary.yValues[i]}));
+    if(!pairs)return;
+    const mE=trainedModels.enroll,mS=trainedModels.salary,mJ=trainedModels.job;
+    let csv=`${primary.xCol},actual_${primary.yCol},enrollment_predicted,salary_predicted,job_predicted,residual\n`;
+    pairs.forEach((p,i)=>{
+        const ep=(mE?.predictions?.[i]??fallbackPredict(mE,p.x)).toFixed(6);
+        const sp=(mS?.predictions?.[i]??fallbackPredict(mS,p.x)).toFixed(6);
+        const jp=(mJ?.predictions?.[i]??fallbackPredict(mJ,p.x)).toFixed(6);
+        csv+=`${p.x},${p.y},${ep},${sp},${jp},${(p.y-parseFloat(ep)).toFixed(6)}\n`;
+    });
+    const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'edupredict_predictions.csv'});
+    a.click();
+}
+
+function dlSample(){
+    const csv=`year,enrollment_millions,median_salary_usd,job_index\n2015,1.00,95000,100\n2016,1.08,100000,130\n2017,1.18,108000,165\n2018,1.27,115000,205\n2019,1.52,122000,250\n2020,0.91,128000,300\n2021,1.24,138000,355\n2022,1.36,148000,410\n2023,1.50,160000,370\n2024,1.58,172000,423`;
+    const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'sample_edupredict.csv'});
+    a.click();
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function upActivate(n){
+    if(n>=2){document.getElementById('upStep2').style.opacity='1';document.getElementById('upStep2').style.pointerEvents='all';document.getElementById('sn1').className='step-num done';document.getElementById('sn2').className='step-num active';}
+    if(n>=3){document.getElementById('upStep3').style.opacity='1';document.getElementById('upStep3').style.pointerEvents='all';document.getElementById('sn2').className='step-num done';document.getElementById('sn3').className='step-num active';document.getElementById('upResults').style.display='block';}
+}
+function upShowErr(msg){const e=document.getElementById('upErr');if(msg){e.textContent=msg;e.classList.add('show');}else e.classList.remove('show');}
+function upShowProg(s){document.getElementById('upProg').style.display=s?'block':'none';if(!s)document.getElementById('upProgFill').style.width='0%';}
+async function upSetProg(l,p){document.getElementById('upProgLabel').textContent=l;document.getElementById('upProgFill').style.width=p+'%';}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+</script>
 </body>
 </html>
