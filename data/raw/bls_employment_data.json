@@ -1,0 +1,19 @@
+{
+  "source": "BLS",
+  "program": "Occupational Employment and Wage Statistics",
+  "years_available": [
+    2026
+  ],
+  "checked_at": "2026-03-02T11:16:28.317264",
+  "target_occupations": [
+    "15-1256 Computer and Information Research Scientists",
+    "15-1250 Software and Web Developers, Programmers, and Testers",
+    "15-1241 Computer and Information Research Scientists",
+    "15-1299 Computer Occupations, All Other"
+  ],
+  "download_urls": {
+    "all_data": "https://data.bls.gov/oes/#/home",
+    "methodology": "https://www.bls.gov/oes/oes_ques.htm"
+  },
+  "note": "Manual CSV download from BLS OEWS website required for full dataset"
+}

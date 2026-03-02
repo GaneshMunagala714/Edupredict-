@@ -1,0 +1,125 @@
+---
+description: EduPredict RAG system architecture and project guidelines. Auto-applies when working on EduPredict files.
+alwaysApply: true
+---
+
+# EduPredict Project Rules
+
+## Project Context
+
+**Purpose:** Predictive tool for universities to decide "Should we add an AI program?"
+**Deadline:** March 9, 2026 (Professor deliverable)
+**Architecture:** LangChain + Chroma + HuggingFace (local, free)
+**Database:** SQLite
+
+## File Locations
+
+- Frontend: `~/Desktop/Edu/index-2.html` (source), `~/edupredict/index-2.html` (deployed)
+- Backend: `~/edupredict/src/`
+- Data: `~/edupredict/data/`
+- Models: `~/edupredict/models/`
+- Repo: https://github.com/GaneshMunagala714/Edupredict-
+
+## Architecture
+
+### RAG Stack
+- **Framework:** LangChain
+- **Vector DB:** Chroma (local, no API keys)
+- **Embeddings:** HuggingFace (free, local)
+- **LLM:** HuggingFace (Llama 2 or Mistral)
+- **Backend:** FastAPI
+- **Database:** SQLite
+
+### Data Pipeline (Tier 1 - Auto-fetch)
+```
+Scheduler (weekly) → Fetcher → Compare → Clean → Append → Retrain
+```
+
+## Project Structure
+
+```
+edupredict/
+├── .cursor/rules/
+│   └── edupredict-rag.mdc (this file)
+├── data/
+│   ├── raw/              # Downloaded datasets
+│   ├── processed/        # Cleaned, standardized
+│   └── metadata.json     # Track last fetch, checksums
+├── src/
+│   ├── fetcher.py        # Check APIs, download new data
+│   ├── cleaner.py        # Standardize formats
+│   ├── scheduler.py      # Weekly job runner
+│   ├── retrain.py        # Retrain model trigger
+│   ├── rag/
+│   │   ├── ingest.py     # Document ingestion to Chroma
+│   │   ├── query.py      # RAG query handler
+│   │   └── embedding.py  # HuggingFace embeddings
+│   └── api.py            # FastAPI endpoints
+├── models/
+│   ├── predictor.py      # Prediction model
+│   └── chroma/           # Vector DB storage
+└── requirements.txt
+```
+
+## Data Sources to Monitor
+
+| Source | Frequency | Method |
+|--------|-----------|--------|
+| IPEDS | Annual | nces.ed.gov/ipeds |
+| BLS | Biennial | bls.gov/ooh |
+| Census | Annual | census.gov/data |
+| Google Trends | Weekly | pytrends |
+| arXiv | Weekly | arxiv.org API |
+
+## Code Standards
+
+- Use `pathlib` for file paths
+- Store metadata in `data/metadata.json` (last_fetch, etag, checksum)
+- Log all fetch/clean/retrain operations
+- Handle schema changes gracefully (version data formats)
+- Never commit large datasets to git (use .gitignore)
+
+## RAG Document Requirements
+
+Documents should answer:
+1. What are current AI program enrollment trends?
+2. Which universities recently added AI programs?
+3. What are job market projections for AI roles?
+4. What factors predict program success?
+
+## API Endpoints (Target)
+
+```
+POST /predict          # University decision prediction
+POST /rag/query        # RAG question answering
+GET  /data/status      # Data freshness status
+POST /data/update      # Manual data refresh trigger
+```
+
+## Environment
+
+```bash
+# Required packages
+langchain
+chromadb
+sentence-transformers
+transformers
+torch
+fastapi
+uvicorn
+sqlite3
+apscheduler
+requests
+pandas
+```
+
+## Deadline Checklist
+
+- [ ] Data fetcher checks all sources weekly
+- [ ] Cleaner handles IPEDS/BLS/Census formats
+- [ ] SQLite schema for enrollment + market data
+- [ ] Chroma vector DB populated with documents
+- [ ] RAG query endpoint working
+- [ ] Prediction model updated with fresh data
+- [ ] Frontend calls backend API
+- [ ] GitHub Pages deployment updated

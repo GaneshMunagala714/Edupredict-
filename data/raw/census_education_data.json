@@ -1,0 +1,24 @@
+{
+  "source": "Census",
+  "program": "American Community Survey (ACS)",
+  "acs_year": 2025,
+  "checked_at": "2026-03-02T11:16:28.512765",
+  "relevant_variables": {
+    "B15003_022E": "Bachelor's degree",
+    "B15003_023E": "Master's degree",
+    "B15003_025E": "Doctorate degree",
+    "B15003_001E": "Total population 25+",
+    "B15003_017E": "Some college, less than 1 year",
+    "B15003_018E": "Some college, 1+ years, no degree",
+    "B15003_019E": "Associate's degree",
+    "B15003_020E": "Associate's degree - occupational",
+    "B15003_021E": "Associate's degree - academic"
+  },
+  "target_tables": [
+    "B15003"
+  ],
+  "geography": "us",
+  "api_base": "https://api.census.gov/data/2025/acs/acs1",
+  "download_url": "https://data.census.gov/cedsci/table?q=education",
+  "note": "Use Census API or data portal for full state-level education data"
+}

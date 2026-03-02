@@ -1,0 +1,22 @@
+# EduPredict Dependencies
+# RAG Stack
+langchain>=0.1.0
+langchain-community>=0.0.10
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+transformers>=4.35.0
+torch>=2.1.0
+
+# API
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+
+# Data Pipeline
+requests>=2.31.0
+pandas>=2.1.0
+apscheduler>=3.10.0
+
+# Utilities
+python-dotenv>=1.0.0
+pathlib2>=2.3.0

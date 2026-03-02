@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "sources": {
+    "ipeds": {
+      "last_fetch": "2026-03-02T11:15:00",
+      "checksum": "reference_data",
+      "file": "ipeds_reference.json",
+      "url": "https://nces.ed.gov/ipeds/use-the-data/download-access-database",
+      "frequency": "annual",
+      "note": "Manual download required for full Access database"
+    },
+    "bls": {
+      "last_fetch": "2026-03-02T11:15:00",
+      "checksum": "reference_data",
+      "file": "bls_employment_data.json",
+      "url": "https://www.bls.gov/ooh/",
+      "frequency": "biennial",
+      "note": "Reference data for AI-relevant occupations"
+    },
+    "census": {
+      "last_fetch": "2026-03-02T11:15:00",
+      "checksum": "reference_data",
+      "file": "census_education_data.json",
+      "url": "https://www.census.gov/data.html",
+      "frequency": "annual",
+      "note": "ACS education attainment variables"
+    },
+    "google_trends": {
+      "last_fetch": null,
+      "checksum": null,
+      "frequency": "weekly",
+      "note": "Optional - requires pytrends: pip install pytrends"
+    },
+    "arxiv": {
+      "last_fetch": "2026-03-02T11:15:00",
+      "checksum": "fetched_papers",
+      "file": "arxiv_ai_education.json",
+      "url": "https://export.arxiv.org/api/query",
+      "frequency": "weekly",
+      "note": "151 AI education papers fetched",
+      "papers_count": 151
+    }
+  },
+  "last_check": "2026-03-02T11:15:00",
+  "last_model_retrain": null,
+  "processed_files": {
+    "arxiv_papers.json": {"records": 151, "type": "research_papers"},
+    "bls_employment.json": {"records": 5, "type": "occupations"},
+    "census_education.json": {"records": 5, "type": "education_levels"},
+    "ipeds_metadata.json": {"records": "reference", "type": "metadata"}
+  },
+  "chroma_db": {
+    "status": "populated",
+    "documents": 159,
+    "sources": {"arxiv": 151, "bls": 6, "census": 1, "ipeds": 1}
+  }
+}
