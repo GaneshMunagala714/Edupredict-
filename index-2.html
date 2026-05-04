@@ -1158,7 +1158,9 @@ function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 //  API INTEGRATION FUNCTIONS
 // ═══════════════════════════════════════════
 
-const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : `${window.location.protocol}//${window.location.host}`;
 
 // Data Status
 async function refreshDataStatus() {
@@ -1189,7 +1191,7 @@ async function refreshDataStatus() {
         
         box.innerHTML = html;
     } catch (error) {
-        box.innerHTML = `<div style="color: var(--red);">Error loading status: ${error.message}<br>Make sure the API server is running on localhost:8000</div>`;
+        box.innerHTML = `<div style="color: var(--red);">Error loading status: ${error.message}<br>Make sure the API server is running at ${API_BASE_URL || window.location.host}</div>`;
     }
 }
 
@@ -1316,7 +1318,7 @@ async function getPrediction() {
         }
         
     } catch (error) {
-        alert('Error getting prediction: ' + error.message + '\n\nMake sure the API server is running at localhost:8000');
+        alert('Error getting prediction: ' + error.message + '\n\nMake sure the API server is running at ' + (API_BASE_URL || window.location.host));
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<span>📊 Get Recommendation</span>';

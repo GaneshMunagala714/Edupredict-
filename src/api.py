@@ -4,30 +4,73 @@ API endpoints for predictions and RAG queries.
 """
 
 import sys
+import os
+
+# Fix OpenMP conflict that causes segfault on macOS with torch + chromadb
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 import json
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+load_dotenv()
+
+# Structured logging
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger("edupredict")
 
 # Add src and models to path
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "models"))
 
-# Import RAG (lazy to avoid segfault on import)
+# RAG is loaded lazily on first request to avoid segfault on macOS
+# (torch + sentence-transformers OpenMP conflict crashes at import time)
 RAG_AVAILABLE = False
-try:
-    from rag.query import answer_question, get_suggested_questions
-    RAG_AVAILABLE = True
-except Exception as e:
-    print(f"Warning: RAG not available (Chroma issue): {e}")
-    def answer_question(*args, **kwargs):
-        return {"error": "RAG unavailable on this system", "answer": None}
-    def get_suggested_questions():
-        return ["RAG unavailable"]
+_rag_loaded = False
+
+def _load_rag():
+    global RAG_AVAILABLE, _rag_loaded, answer_question, get_suggested_questions
+    if _rag_loaded:
+        return RAG_AVAILABLE
+    _rag_loaded = True
+    try:
+        from rag.query import answer_question as _aq, get_suggested_questions as _gsq
+        answer_question = _aq
+        get_suggested_questions = _gsq
+        RAG_AVAILABLE = True
+        logger.info("RAG loaded successfully")
+    except Exception as e:
+        logger.warning(f"RAG not available: {e}")
+        RAG_AVAILABLE = False
+    return RAG_AVAILABLE
+
+def answer_question(*args, **kwargs):
+    if _load_rag() and RAG_AVAILABLE:
+        from rag.query import answer_question as _aq
+        return _aq(*args, **kwargs)
+    return {"error": "RAG unavailable on this system", "answer": None}
+
+def get_suggested_questions():
+    if _load_rag() and RAG_AVAILABLE:
+        from rag.query import get_suggested_questions as _gsq
+        return _gsq()
+    return ["What AI programs are growing fastest?", "What salary can AI graduates expect?"]
 
 from fetcher import load_metadata, get_source_status
 
@@ -36,30 +79,40 @@ try:
     from predictor import create_model, predict_from_dict, UniversityProfile
     PREDICTOR_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: Could not import predictor: {e}")
+    logger.warning(f"Could not import predictor: {e}")
     PREDICTOR_AVAILABLE = False
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="EduPredict API",
     version="1.0",
     description="Predictive tool for universities to decide: Should we add an AI program?"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS for frontend
+# CORS — read from env, fall back to localhost for dev
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Paths
-DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_DIR = Path(os.getenv("EDUPREDICT_DATA_DIR", Path(__file__).parent.parent / "data"))
 METADATA_FILE = DATA_DIR / "metadata.json"
 
 
 # Request/Response Models
+
+VALID_UNIVERSITY_TYPES = {"public", "private", "for_profit"}
+VALID_COMPETITION_LEVELS = {"low", "medium", "high"}
+
 
 class PredictRequest(BaseModel):
     university_type: str  # public, private, for_profit
@@ -69,6 +122,41 @@ class PredictRequest(BaseModel):
     budget_millions: float
     market_demand_score: float  # 0-100
     competition_level: str  # low, medium, high
+
+    @field_validator("university_type")
+    @classmethod
+    def validate_university_type(cls, v):
+        if v.lower() not in VALID_UNIVERSITY_TYPES:
+            raise ValueError(f"university_type must be one of: {', '.join(VALID_UNIVERSITY_TYPES)}")
+        return v.lower()
+
+    @field_validator("competition_level")
+    @classmethod
+    def validate_competition_level(cls, v):
+        if v.lower() not in VALID_COMPETITION_LEVELS:
+            raise ValueError(f"competition_level must be one of: {', '.join(VALID_COMPETITION_LEVELS)}")
+        return v.lower()
+
+    @field_validator("market_demand_score")
+    @classmethod
+    def validate_demand_score(cls, v):
+        if not (0 <= v <= 100):
+            raise ValueError("market_demand_score must be between 0 and 100")
+        return v
+
+    @field_validator("current_cs_enrollment", "faculty_count")
+    @classmethod
+    def validate_positive_int(cls, v):
+        if v < 0:
+            raise ValueError("Value must be non-negative")
+        return v
+
+    @field_validator("budget_millions")
+    @classmethod
+    def validate_budget(cls, v):
+        if v < 0:
+            raise ValueError("budget_millions must be non-negative")
+        return v
 
 
 class PredictResponse(BaseModel):
@@ -147,18 +235,15 @@ def root():
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(request: PredictRequest):
+@limiter.limit("30/minute")
+def predict(request: PredictRequest, req: Request):
     """
     Predict whether a university should add an AI program.
     """
     if not PREDICTOR_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Prediction model not available"
-        )
-    
+        raise HTTPException(status_code=503, detail="Prediction model not available")
+
     try:
-        # Convert to predictor input format
         data = {
             "university_type": request.university_type,
             "region": request.region,
@@ -166,12 +251,10 @@ def predict(request: PredictRequest):
             "faculty_count": request.faculty_count,
             "budget_millions": request.budget_millions,
             "market_demand_score": request.market_demand_score,
-            "competition_level": request.competition_level
+            "competition_level": request.competition_level,
         }
-        
-        # Get prediction
         result = predict_from_dict(data)
-        
+        logger.info(f"Prediction: {result.recommendation} (confidence={result.confidence:.2f}, type={request.university_type})")
         return PredictResponse(
             recommendation=result.recommendation,
             confidence=result.confidence,
@@ -180,14 +263,11 @@ def predict(request: PredictRequest):
             roi_score=result.roi_score,
             key_factors=result.key_factors,
             risk_factors=result.risk_factors,
-            market_outlook=result.market_outlook
+            market_outlook=result.market_outlook,
         )
-        
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction error: {str(e)}"
-        )
+        logger.error(f"Prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
 @app.get("/predict/history", response_model=PredictionHistoryResponse)
@@ -254,7 +334,8 @@ def prediction_stats():
 
 
 @app.post("/rag/query", response_model=RAGQueryResponse)
-def rag_query(request: RAGQueryRequest):
+@limiter.limit("20/minute")
+def rag_query(request: RAGQueryRequest, req: Request):
     """
     Query the RAG system for relevant documents and generate an answer.
     """
@@ -284,10 +365,8 @@ def rag_query(request: RAGQueryRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"RAG query error: {str(e)}"
-        )
+        logger.error(f"RAG query error: {e}")
+        raise HTTPException(status_code=500, detail=f"RAG query error: {str(e)}")
 
 
 @app.get("/rag/suggestions")
@@ -439,19 +518,16 @@ def api_info():
 # Development server
 if __name__ == "__main__":
     import uvicorn
-    
-    print("=" * 60)
-    print("EduPredict API Server")
-    print("=" * 60)
-    print(f"Predictor available: {PREDICTOR_AVAILABLE}")
-    print("\nAPI Documentation:")
-    print(f"  Swagger UI: http://localhost:8000/docs")
-    print(f"  ReDoc: http://localhost:8000/redoc")
-    print(f"  Health: http://localhost:8000/")
-    print("\nKey endpoints:")
-    print(f"  POST http://localhost:8000/predict")
-    print(f"  POST http://localhost:8000/rag/query")
-    print(f"  GET  http://localhost:8000/data/status")
-    print("=" * 60)
-    
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+
+    logger.info("=" * 60)
+    logger.info("EduPredict API Server (dev mode)")
+    logger.info(f"Predictor available: {PREDICTOR_AVAILABLE}")
+    logger.info(f"RAG available: {RAG_AVAILABLE}")
+    logger.info(f"Allowed origins: {ALLOWED_ORIGINS}")
+    logger.info(f"Swagger UI: http://localhost:{port}/docs")
+    logger.info("=" * 60)
+
+    uvicorn.run(app, host=host, port=port)
